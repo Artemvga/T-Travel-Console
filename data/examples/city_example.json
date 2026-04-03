@@ -1,0 +1,9 @@
+{
+  "_comment": "Пример одного города",
+  "name": "Москва",
+  "population": 13000000,
+  "has_airport": true,
+  "has_train_station": true,
+  "has_bus_station": true,
+  "has_commuter_station": true
+}

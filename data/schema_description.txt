@@ -1,0 +1,32 @@
+Схемы данных (для последующего заполнения)
+
+Источник списка городов: russia_cities.csv (колонки: city, population, lat, lon, region_name, ...)
+
+--- Билет (ticket), массив в ключе "tickets" ---
+from_city          — строка, город отправления (как в cities)
+to_city            — строка, город назначения
+company            — строка, перевозчик (дублирует файл компании)
+departure_date     — строка, ГГГГ-ММ-ДД
+departure_time     — строка, ЧЧ:ММ (локальное время отправления)
+price_rub          — число, стоимость в рублях
+distance_km        — число, расстояние пути в километрах (с учётом кривизны маршрута)
+duration_min       — число, время в пути в минутах
+
+Опционально позже: flight_number и т.д.
+
+--- Город (city), массив в ключе "cities" ---
+name                    — строка, название
+population              — число (жителей; из CSV можно подставлять * 1000 если там тысячи)
+has_airport             — bool
+has_train_station       — bool (ж/д станция)
+has_bus_station         — bool (автобусная станция)
+has_commuter_station    — bool (станция электричек / пригород)
+
+Опционально позже: lat, lon, region из CSV
+
+--- Файлы перевозчиков (сгенерированы скриптом scripts/build_transport_companies_json.py) ---
+data/buses/by_operator/<id>.json — один оператор: region, city, company, reference_url, tickets[]
+data/buses/operators_index.json — все автобусные операторы одним массивом
+data/planes/{aeroflot,s7,pobeda}.json — авиакомпании
+data/trains/rzd.json — РЖД
+data/planes_trains_index.json — краткий список авиа и ж/д

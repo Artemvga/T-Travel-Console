@@ -1,0 +1,11 @@
+{
+  "_comment": "Пример одного билета; в рабочих файлах ключ _comment не используйте",
+  "from_city": "Москва",
+  "to_city": "Санкт-Петербург",
+  "company": "S7",
+  "departure_date": "2026-06-01",
+  "departure_time": "09:30",
+  "price_rub": 5500,
+  "distance_km": 650,
+  "duration_min": 95
+}

@@ -1,0 +1,469 @@
+{
+  "meta": {
+    "category": "bus",
+    "description": "Автобусные перевозки по регионам (операторы / автовокзалы)",
+    "count": 46
+  },
+  "operators": [
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "amur_amurasso",
+      "region": "Амурская область",
+      "city": "Благовещенск",
+      "company": "Международный автовокзал «Амурассо»",
+      "reference_url": "https://www.avtovokzaly.ru/raspisanie/blagoveshensk/mezhdunarodnyj_avtovokzal_amurasso",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "arkhangelsk",
+      "region": "Архангельская область",
+      "city": "Архангельск",
+      "company": "Автовокзал Архангельска",
+      "reference_url": "https://www.avtovokzaly.ru/raspisanie/arhangelsk/avtovokzal",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "astrakhan",
+      "region": "Астраханская область",
+      "city": "Астрахань",
+      "company": "Автовокзал Астрахани",
+      "reference_url": "https://av30.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "belgorod_etk",
+      "region": "Белгородская область",
+      "city": "пгт Северный (Белгородский район)",
+      "company": "ЕТК",
+      "reference_url": "https://etk31.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "bryansk",
+      "region": "Брянская область",
+      "city": "Брянск",
+      "company": "Автостанция города Брянска",
+      "reference_url": "https://avtovokzal-br.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "vladimir",
+      "region": "Владимирская область",
+      "city": "Владимир",
+      "company": "Объединение автовокзалов и автостанций Владимирской области",
+      "reference_url": "https://vladavtovokzal.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "volgograd",
+      "region": "Волгоградская область",
+      "city": "Волгоград",
+      "company": "Автовокзал Волгоград",
+      "reference_url": "https://avtovokzal-volgograd.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "vologda",
+      "region": "Вологодская область",
+      "city": "Вологда",
+      "company": "Вологодский автовокзал",
+      "reference_url": "https://avtovokzal35.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "voronezh",
+      "region": "Воронежская область",
+      "city": "Воронеж",
+      "company": "Центральный автовокзал Воронежа",
+      "reference_url": "https://vokzal36.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "ivanovo",
+      "region": "Ивановская область",
+      "city": "Иваново",
+      "company": "Ивановское объединение автовокзалов",
+      "reference_url": "https://av37.ru/ivanovo/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "irkutsk",
+      "region": "Иркутская область",
+      "city": "Иркутск",
+      "company": "Автовокзал-Онлайн",
+      "reference_url": "https://avtovokzal-on-line.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "kaliningrad",
+      "region": "Калининградская область",
+      "city": "Калининград",
+      "company": "АО «Автовокзал»",
+      "reference_url": "https://avl39.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "kaluga",
+      "region": "Калужская область",
+      "city": "Калуга",
+      "company": "Автовокзал Калуги",
+      "reference_url": "https://av-kaluga.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "kemerovo",
+      "region": "Кемеровская область",
+      "city": "Кемерово",
+      "company": "Автовокзал Кемерово / Автовокзалы Кузбасса",
+      "reference_url": "https://xn--80abcuo9bal.xn--p1ai/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "kirov",
+      "region": "Кировская область",
+      "city": "Киров",
+      "company": "Автовокзал Кирова",
+      "reference_url": "https://kirovkpat.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "kostroma",
+      "region": "Костромская область",
+      "city": "Кострома",
+      "company": "Автовокзал Костромы",
+      "reference_url": "https://av-kostroma.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "kurgan",
+      "region": "Курганская область",
+      "city": "Курган",
+      "company": "Курганский автовокзал",
+      "reference_url": "https://av45.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "kursk",
+      "region": "Курская область",
+      "city": "Курск",
+      "company": "Курский автовокзал",
+      "reference_url": "https://autovokzal46.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "lenobl",
+      "region": "Ленинградская область",
+      "city": "Санкт-Петербург",
+      "company": "ГКУ ЛО «Леноблтранс»",
+      "reference_url": "https://gkulot.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "lipetsk",
+      "region": "Липецкая область",
+      "city": "Липецк",
+      "company": "Автовокзал Липецк",
+      "reference_url": "https://avtovokzal48.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "magadan",
+      "region": "Магаданская область",
+      "city": "Магадан",
+      "company": "Автовокзал Магадана",
+      "reference_url": "https://www.avtovokzaly.ru/raspisanie/magadan/avtovokzal",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "mostransavto",
+      "region": "Московская область",
+      "city": "Московская область",
+      "company": "Мострансавто",
+      "reference_url": "https://mostransavto.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "murmansk",
+      "region": "Мурманская область",
+      "city": "Мурманск",
+      "company": "АО «Мурманскавтотранс»",
+      "reference_url": "https://murmanskavtotrans.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "nizhny_novgorod",
+      "region": "Нижегородская область",
+      "city": "Нижний Новгород",
+      "company": "Нижегородпассажиравтотранс",
+      "reference_url": "https://npat.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "veliky_novgorod",
+      "region": "Новгородская область",
+      "city": "Великий Новгород",
+      "company": "АО «Автобусный парк»",
+      "reference_url": "https://buspark53.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "novosibirsk",
+      "region": "Новосибирская область",
+      "city": "Новосибирск",
+      "company": "Новосибирский автовокзал-Главный",
+      "reference_url": "https://nskavtovokzal.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "omsk",
+      "region": "Омская область",
+      "city": "Омск",
+      "company": "Омскоблавтотранс",
+      "reference_url": "https://omskoblauto.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "orenburg",
+      "region": "Оренбургская область",
+      "city": "Оренбург",
+      "company": "Автовокзал Оренбург",
+      "reference_url": "https://av56.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "orel",
+      "region": "Орловская область",
+      "city": "Орёл",
+      "company": "Орёлавтотранс / автовокзалы Орловской области",
+      "reference_url": "https://xn--57-6kcaja9axlzb9b.xn--p1ai/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "penza",
+      "region": "Пензенская область",
+      "city": "Пенза",
+      "company": "Автовокзал Пенза",
+      "reference_url": "https://avtovokzal-penza.ru/penza/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "pskov",
+      "region": "Псковская область",
+      "city": "Псков",
+      "company": "АО «Псковпассажиравтотранс»",
+      "reference_url": "https://www.pskovbus.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "rostov",
+      "region": "Ростовская область",
+      "city": "Ростов-на-Дону",
+      "company": "Областной автовокзал «Центральный»",
+      "reference_url": "https://centrobus.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "ryazan",
+      "region": "Рязанская область",
+      "city": "Рязань",
+      "company": "Автовокзалы Рязани и области",
+      "reference_url": "https://autovokzal62.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "samara",
+      "region": "Самарская область",
+      "city": "Самара",
+      "company": "Автовокзал Самары",
+      "reference_url": "https://avokzal63.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "saratov",
+      "region": "Саратовская область",
+      "city": "Саратов",
+      "company": "Автовокзал Саратова",
+      "reference_url": "https://avv64.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "sakhalin",
+      "region": "Сахалинская область",
+      "city": "Южно-Сахалинск",
+      "company": "АО «Транспортная компания»",
+      "reference_url": "https://65bus.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "ekaterinburg",
+      "region": "Свердловская область",
+      "city": "Екатеринбург",
+      "company": "Свердловское областное объединение пассажирского автотранспорта (автовокзал «Южный»)",
+      "reference_url": "https://autovokzal.org/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "smolensk",
+      "region": "Смоленская область",
+      "city": "Смоленск",
+      "company": "Автовокзал Смоленска",
+      "reference_url": "https://smolavtovokzal.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "tambov",
+      "region": "Тамбовская область",
+      "city": "Тамбов",
+      "company": "Автовокзал Тамбов",
+      "reference_url": "https://tambov-avtovokzal.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "tver",
+      "region": "Тверская область",
+      "city": "Тверь",
+      "company": "Тверьавтотранс",
+      "reference_url": "https://www.tverautotrans.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "tomsk",
+      "region": "Томская область",
+      "city": "Томск",
+      "company": "АО «Томскавтотранс»",
+      "reference_url": "https://tomskavtotrans.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "tula",
+      "region": "Тульская область",
+      "city": "Тула",
+      "company": "ООО «ТУЛААВТОТРАНС»",
+      "reference_url": "https://tula-avtotrans.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "tyumen",
+      "region": "Тюменская область",
+      "city": "Тюмень",
+      "company": "ГБУ ТО «Объединение АВ и АС»",
+      "reference_url": "https://vokzal72.ru/tyumen/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "ulyanovsk",
+      "region": "Ульяновская область",
+      "city": "Ульяновск",
+      "company": "АО «ПАТП-1»",
+      "reference_url": "https://auto.patp-ul.ru/",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "chelyabinsk",
+      "region": "Челябинская область",
+      "city": "Челябинск",
+      "company": "Центральный автовокзал «Синегорье»",
+      "reference_url": "https://www.avtovokzaly.ru/raspisanie/chelyabinsk/avtovokzal_sinegore",
+      "tickets": []
+    },
+    {
+      "schema_version": 1,
+      "category": "bus",
+      "id": "yaroslavl",
+      "region": "Ярославская область",
+      "city": "Ярославль",
+      "company": "Яавтобус",
+      "reference_url": "https://www.t-ya.ru/",
+      "tickets": []
+    }
+  ]
+}
