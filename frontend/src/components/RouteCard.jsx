@@ -9,7 +9,8 @@ function routeTitle(transfersCount) {
   return `Маршрут с ${transfersCount} пересадк${transfersCount === 1 ? "ой" : "ами"}`;
 }
 
-export function RouteCard({ route, title, highlight = false }) {
+export function RouteCard({ route, title, highlight = false, actions = null }) {
+  const transfersLabel = route.transfers_count ? `${route.transfers_count}` : "Прямой";
   return (
     <article className={`route-card ${highlight ? "route-card-highlight" : ""}`}>
       <div className="route-card-top">
@@ -29,6 +30,8 @@ export function RouteCard({ route, title, highlight = false }) {
         </div>
       ) : null}
 
+      {actions ? <div className="route-card-actions">{actions}</div> : null}
+
       <div className="route-summary-grid">
         <div className="mini-card">
           <span>Общее время</span>
@@ -40,7 +43,7 @@ export function RouteCard({ route, title, highlight = false }) {
         </div>
         <div className="mini-card">
           <span>Пересадки</span>
-          <strong>{route.transfers_count}</strong>
+          <strong>{transfersLabel}</strong>
         </div>
         <div className="mini-card">
           <span>Сегменты</span>

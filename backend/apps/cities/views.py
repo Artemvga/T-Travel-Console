@@ -1,3 +1,7 @@
+import json
+from pathlib import Path
+
+from django.conf import settings
 from django.db.models import Case, CharField, Count, F, IntegerField, Q, When
 from rest_framework import generics
 from rest_framework.response import Response
@@ -8,6 +12,20 @@ from apps.tickets.models import Ticket
 from .models import City
 from .search_utils import rank_city_match
 from .serializers import CityDetailSerializer, CityListSerializer, CitySearchSerializer
+
+
+def _city_snapshot_path(slug: str) -> Path:
+    return Path(settings.DATA_DIR) / "cache" / "city_details" / f"{slug}.json"
+
+
+def _read_city_snapshot(slug: str):
+    path = _city_snapshot_path(slug)
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
 
 
 class CityListAPIView(generics.ListAPIView):
@@ -56,6 +74,14 @@ class CityDetailAPIView(generics.RetrieveAPIView):
     lookup_field = "slug"
     authentication_classes = []
     permission_classes = []
+
+    def get(self, request, *args, **kwargs):
+        snapshot = _read_city_snapshot(kwargs["slug"])
+        if snapshot is not None:
+            return Response(snapshot)
+        city = self.get_object()
+        serializer = self.get_serializer(city)
+        return Response(serializer.data)
 
     def get_object(self):
         city = super().get_object()

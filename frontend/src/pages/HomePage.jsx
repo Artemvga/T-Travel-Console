@@ -4,21 +4,50 @@ import { Link } from "react-router-dom";
 import { Footer } from "../components/Footer";
 import { Hero } from "../components/Hero";
 import { Navbar } from "../components/Navbar";
+import { TransportGlyph } from "../components/TransportGlyph";
 import { visuals } from "../content/visuals";
 import { getStats } from "../services/api";
 import { formatCompactNumber } from "../utils/format";
 
 const transportMarks = {
-  plane: "✈",
-  train: "ЖД",
-  bus: "BUS",
-  electric_train: "ЭЛ",
+  plane: { className: "transport-category-mark-plane" },
+  train: { className: "transport-category-mark-train" },
+  bus: { className: "transport-category-mark-bus" },
+  electric_train: { className: "transport-category-mark-electric" },
 };
 
-const transportVisuals = {
-  plane: visuals.hero,
-  train: visuals.rail,
-};
+function getPopularDirections(section) {
+  const directions = section.popular_directions?.slice(0, 3) || [];
+
+  if (directions.length) {
+    const preparedDirections = directions.map((direction) => ({
+      key: `${section.transport_type}-${direction.from_city}-${direction.to_city}`,
+      label: `${direction.from_city} → ${direction.to_city}`,
+      value: formatCompactNumber(direction.tickets_count),
+      empty: false,
+    }));
+
+    while (preparedDirections.length < 3) {
+      preparedDirections.push({
+        key: `${section.transport_type}-placeholder-${preparedDirections.length}`,
+        label: "Новые направления будут показаны здесь",
+        value: "—",
+        empty: true,
+      });
+    }
+
+    return preparedDirections;
+  }
+
+  return [
+    {
+      key: `${section.transport_type}-empty`,
+      label: "Пока нет активных направлений",
+      value: "—",
+      empty: true,
+    },
+  ];
+}
 
 function buildCategorySections(stats) {
   if (stats?.transport_sections?.length) {
@@ -100,24 +129,28 @@ export function HomePage() {
         <Hero stats={stats} />
 
         <section className="wide-card feature-band">
-          <article className="feature-band-card feature-band-card-dark">
+          <article className="feature-band-card feature-band-card-dark feature-band-card-evening">
             <span className="eyebrow">Что уже умеет сайт</span>
-            <h2>Поиск маршрута, информация о городе, карта и личный кабинет собраны в один продукт.</h2>
+            <h2>Маршруты, карта, информация о городе и личный кабинет работают как единый сервис.</h2>
             <p>
-              Мы ушли от консольного сценария к цельному веб-интерфейсу, где
-              маршрут, ограничения, карта и найденные билеты находятся в одном
-              потоке.
+              Вместо консольного сценария теперь есть цельный веб-интерфейс:
+              поиск, фильтры, карта и найденные билеты собраны в одном потоке.
             </p>
           </article>
-          <article className="feature-band-card">
-            <span className="eyebrow">Следующий шаг</span>
-            <strong>Открыть построение маршрута и попробовать поиск с транзитом.</strong>
+          <article className="feature-band-card feature-band-card-facts">
+            <span className="eyebrow">Интересные факты</span>
+            <strong>Сразу показываем маршрут на карте и даем быстро сравнить весь путь.</strong>
+            <ul className="fact-list">
+              <li>Маршрут отображается на Яндекс Карте по каждому сегменту.</li>
+              <li>Можно увидеть, сколько времени занимает каждый вид транспорта.</li>
+              <li>После входа маршрут сохраняется в избранное в один клик.</li>
+            </ul>
             <Link to="/routes" className="secondary-button">
               Перейти к маршрутам
             </Link>
           </article>
           <article className="feature-band-image">
-            <img src={visuals.rail} alt="Современный поезд" />
+            <img src={visuals.city} alt="Городской пейзаж" />
           </article>
         </section>
 
@@ -131,15 +164,20 @@ export function HomePage() {
 
           <div className="summary-category-grid">
             {sections.map((section) => (
-              <article key={section.transport_type} className="summary-category-card">
-                {transportVisuals[section.transport_type] ? (
-                  <div className="summary-category-image">
-                    <img src={transportVisuals[section.transport_type]} alt={section.label} />
-                  </div>
-                ) : null}
+              <article
+                key={section.transport_type}
+                className={`summary-category-card summary-category-card-${section.transport_type}`}
+              >
                 <div className="summary-category-top">
-                  <span className="transport-category-mark">
-                    {transportMarks[section.transport_type] || "TP"}
+                  <span
+                    className={`transport-category-mark ${
+                      transportMarks[section.transport_type]?.className || ""
+                    }`}
+                  >
+                    <TransportGlyph
+                      type={section.transport_type}
+                      className="transport-category-glyph"
+                    />
                   </span>
                   <div>
                     <span className="summary-category-label">{section.label}</span>
@@ -150,14 +188,13 @@ export function HomePage() {
                 <div className="summary-category-body">
                   <span className="summary-category-subtitle">Популярные направления</span>
                   <ul className="summary-direction-list">
-                    {section.popular_directions?.slice(0, 3).map((direction) => (
+                    {getPopularDirections(section).map((direction) => (
                       <li
-                        key={`${section.transport_type}-${direction.from_city}-${direction.to_city}`}
+                        key={direction.key}
+                        className={direction.empty ? "summary-direction-empty" : ""}
                       >
-                        <span>
-                          {direction.from_city} → {direction.to_city}
-                        </span>
-                        <strong>{formatCompactNumber(direction.tickets_count)}</strong>
+                        <span>{direction.label}</span>
+                        <strong>{direction.value}</strong>
                       </li>
                     ))}
                   </ul>

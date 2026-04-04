@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from urllib.parse import parse_qs, unquote, urlparse
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = BASE_DIR.parent
@@ -63,14 +64,88 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
-DATABASES = {
-    "default": {
+
+def _env_flag(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _sqlite_database_config():
+    return {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": os.getenv("DJANGO_SQLITE_NAME", str(BASE_DIR / "t_travel.sqlite3")),
         "OPTIONS": {
             "timeout": int(os.getenv("DJANGO_SQLITE_TIMEOUT", "30")),
         },
     }
+
+
+def _postgres_database_config():
+    database_url = os.getenv("DATABASE_URL", "").strip()
+    if database_url:
+        parsed = urlparse(database_url)
+        if parsed.scheme not in {"postgres", "postgresql"}:
+            raise ValueError("DATABASE_URL must use postgres:// or postgresql://")
+        query = {key: values[-1] for key, values in parse_qs(parsed.query).items() if values}
+        options = {}
+        for key in (
+            "sslmode",
+            "sslrootcert",
+            "sslcert",
+            "sslkey",
+            "target_session_attrs",
+            "application_name",
+            "options",
+        ):
+            if query.get(key):
+                options[key] = query[key]
+        if os.getenv("POSTGRES_SSLMODE", "").strip():
+            options["sslmode"] = os.getenv("POSTGRES_SSLMODE", "").strip()
+        if os.getenv("POSTGRES_APPLICATION_NAME", "").strip():
+            options["application_name"] = os.getenv("POSTGRES_APPLICATION_NAME", "").strip()
+        if os.getenv("POSTGRES_OPTIONS", "").strip():
+            options["options"] = os.getenv("POSTGRES_OPTIONS", "").strip()
+        return {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": unquote((parsed.path or "/")[1:] or ""),
+            "USER": unquote(parsed.username or ""),
+            "PASSWORD": unquote(parsed.password or ""),
+            "HOST": parsed.hostname or "127.0.0.1",
+            "PORT": str(parsed.port or 5432),
+            "CONN_MAX_AGE": int(os.getenv("POSTGRES_CONN_MAX_AGE", "60")),
+            "CONN_HEALTH_CHECKS": _env_flag("POSTGRES_CONN_HEALTH_CHECKS", True),
+            "OPTIONS": options,
+        }
+
+    postgres_db = os.getenv("POSTGRES_DB", "").strip()
+    if not postgres_db:
+        return None
+
+    options = {}
+    if os.getenv("POSTGRES_SSLMODE", "").strip():
+        options["sslmode"] = os.getenv("POSTGRES_SSLMODE", "").strip()
+    if os.getenv("POSTGRES_APPLICATION_NAME", "").strip():
+        options["application_name"] = os.getenv("POSTGRES_APPLICATION_NAME", "").strip()
+    if os.getenv("POSTGRES_OPTIONS", "").strip():
+        options["options"] = os.getenv("POSTGRES_OPTIONS", "").strip()
+
+    return {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": postgres_db,
+        "USER": os.getenv("POSTGRES_USER", "").strip(),
+        "PASSWORD": os.getenv("POSTGRES_PASSWORD", ""),
+        "HOST": os.getenv("POSTGRES_HOST", "127.0.0.1").strip() or "127.0.0.1",
+        "PORT": os.getenv("POSTGRES_PORT", "5432").strip() or "5432",
+        "CONN_MAX_AGE": int(os.getenv("POSTGRES_CONN_MAX_AGE", "60")),
+        "CONN_HEALTH_CHECKS": _env_flag("POSTGRES_CONN_HEALTH_CHECKS", True),
+        "OPTIONS": options,
+    }
+
+
+DATABASES = {
+    "default": _postgres_database_config() or _sqlite_database_config()
 }
 
 AUTH_PASSWORD_VALIDATORS = []

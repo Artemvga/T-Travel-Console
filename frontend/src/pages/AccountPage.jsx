@@ -31,6 +31,15 @@ export function AccountPage() {
   const [mode, setMode] = useState("login");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [loginInvalid, setLoginInvalid] = useState({
+    username: false,
+    password: false,
+  });
+  const [registerInvalid, setRegisterInvalid] = useState({
+    username: false,
+    password: false,
+    password_confirm: false,
+  });
   const [loginForm, setLoginForm] = useState({
     username: "",
     password: "",
@@ -51,11 +60,19 @@ export function AccountPage() {
     event.preventDefault();
     setBusy(true);
     setError("");
+    setLoginInvalid({
+      username: false,
+      password: false,
+    });
 
     try {
       await login(loginForm);
     } catch (requestError) {
       setError(getApiError(requestError, "Не удалось выполнить вход."));
+      setLoginInvalid({
+        username: true,
+        password: true,
+      });
     } finally {
       setBusy(false);
     }
@@ -65,11 +82,22 @@ export function AccountPage() {
     event.preventDefault();
     setBusy(true);
     setError("");
+    setRegisterInvalid({
+      username: false,
+      password: false,
+      password_confirm: false,
+    });
 
     try {
       await register(registerForm);
     } catch (requestError) {
       setError(getApiError(requestError, "Не удалось зарегистрировать пользователя."));
+      const data = requestError?.response?.data || {};
+      setRegisterInvalid({
+        username: Boolean(data.username),
+        password: Boolean(data.password),
+        password_confirm: Boolean(data.password_confirm),
+      });
     } finally {
       setBusy(false);
     }
@@ -93,25 +121,8 @@ export function AccountPage() {
 
       <main className="page">
         {!isAuthenticated ? (
-          <section className="content-card account-card">
+          <section className="content-card account-card account-card-guest">
             <div className="account-layout">
-              <div className="account-promo">
-                <p className="eyebrow">Аккаунт</p>
-                <h2>Войдите, чтобы видеть последние поиски и работать с маршрутом как с личной сессией.</h2>
-                <p className="page-copy">
-                  Авторизация уже работает через Django API. После входа поиск маршрутов
-                  привязывается к вашему профилю, а история запросов видна прямо в кабинете.
-                </p>
-                <div className="hero-chip-row">
-                  <span className="hero-chip">Вход и регистрация</span>
-                  <span className="hero-chip">История поисков</span>
-                  <span className="hero-chip">Token auth</span>
-                </div>
-                <div className="account-promo-image">
-                  <img src={visuals.rail} alt="Авторизация и профиль" />
-                </div>
-              </div>
-
               <div className="account-form-card">
                 <div className="account-mode-switch">
                   <button
@@ -130,35 +141,55 @@ export function AccountPage() {
                   </button>
                 </div>
 
-                {error ? <div className="inline-alert inline-alert-error">{error}</div> : null}
+                {error ? (
+                  <div className="inline-alert inline-alert-error" role="alert">
+                    {error}
+                  </div>
+                ) : null}
 
                 {mode === "login" ? (
                   <form className="account-form" onSubmit={handleLogin}>
-                    <label className="field-stack">
+                    <label className={`field-stack ${loginInvalid.username ? "field-stack-error" : ""}`}>
                       <span>Логин</span>
                       <input
                         type="text"
+                        aria-invalid={loginInvalid.username}
                         value={loginForm.username}
                         onChange={(event) =>
-                          setLoginForm((current) => ({
-                            ...current,
-                            username: event.target.value,
-                          }))
+                          {
+                            setError("");
+                            setLoginInvalid((current) => ({ ...current, username: false }));
+                            setLoginForm((current) => ({
+                              ...current,
+                              username: event.target.value,
+                            }));
+                          }
                         }
                       />
+                      {loginInvalid.username ? (
+                        <small className="field-error-note">Проверьте логин.</small>
+                      ) : null}
                     </label>
-                    <label className="field-stack">
+                    <label className={`field-stack ${loginInvalid.password ? "field-stack-error" : ""}`}>
                       <span>Пароль</span>
                       <input
                         type="password"
+                        aria-invalid={loginInvalid.password}
                         value={loginForm.password}
                         onChange={(event) =>
-                          setLoginForm((current) => ({
-                            ...current,
-                            password: event.target.value,
-                          }))
+                          {
+                            setError("");
+                            setLoginInvalid((current) => ({ ...current, password: false }));
+                            setLoginForm((current) => ({
+                              ...current,
+                              password: event.target.value,
+                            }));
+                          }
                         }
                       />
+                      {loginInvalid.password ? (
+                        <small className="field-error-note">Проверьте пароль.</small>
+                      ) : null}
                     </label>
                     <button type="submit" className="primary-button" disabled={busy}>
                       {busy ? "Входим..." : "Войти"}
@@ -166,50 +197,94 @@ export function AccountPage() {
                   </form>
                 ) : (
                   <form className="account-form" onSubmit={handleRegister}>
-                    <label className="field-stack">
+                    <label className={`field-stack ${registerInvalid.username ? "field-stack-error" : ""}`}>
                       <span>Логин</span>
                       <input
                         type="text"
+                        aria-invalid={registerInvalid.username}
                         value={registerForm.username}
                         onChange={(event) =>
-                          setRegisterForm((current) => ({
-                            ...current,
-                            username: event.target.value,
-                          }))
+                          {
+                            setError("");
+                            setRegisterInvalid((current) => ({ ...current, username: false }));
+                            setRegisterForm((current) => ({
+                              ...current,
+                              username: event.target.value,
+                            }));
+                          }
                         }
                       />
+                      {registerInvalid.username ? (
+                        <small className="field-error-note">Логин уже занят или заполнен неверно.</small>
+                      ) : null}
                     </label>
-                    <label className="field-stack">
+                    <label className={`field-stack ${registerInvalid.password ? "field-stack-error" : ""}`}>
                       <span>Пароль</span>
                       <input
                         type="password"
+                        aria-invalid={registerInvalid.password}
                         value={registerForm.password}
                         onChange={(event) =>
-                          setRegisterForm((current) => ({
-                            ...current,
-                            password: event.target.value,
-                          }))
+                          {
+                            setError("");
+                            setRegisterInvalid((current) => ({ ...current, password: false }));
+                            setRegisterForm((current) => ({
+                              ...current,
+                              password: event.target.value,
+                            }));
+                          }
                         }
                       />
+                      {registerInvalid.password ? (
+                        <small className="field-error-note">Пароль не подходит.</small>
+                      ) : null}
                     </label>
-                    <label className="field-stack">
+                    <label className={`field-stack ${registerInvalid.password_confirm ? "field-stack-error" : ""}`}>
                       <span>Повтор пароля</span>
                       <input
                         type="password"
+                        aria-invalid={registerInvalid.password_confirm}
                         value={registerForm.password_confirm}
                         onChange={(event) =>
-                          setRegisterForm((current) => ({
-                            ...current,
-                            password_confirm: event.target.value,
-                          }))
+                          {
+                            setError("");
+                            setRegisterInvalid((current) => ({
+                              ...current,
+                              password_confirm: false,
+                            }));
+                            setRegisterForm((current) => ({
+                              ...current,
+                              password_confirm: event.target.value,
+                            }));
+                          }
                         }
                       />
+                      {registerInvalid.password_confirm ? (
+                        <small className="field-error-note">Пароли должны совпадать.</small>
+                      ) : null}
                     </label>
                     <button type="submit" className="primary-button" disabled={busy}>
                       {busy ? "Создаем..." : "Создать аккаунт"}
                     </button>
                   </form>
                 )}
+              </div>
+
+              <div className="account-promo">
+                <p className="eyebrow">Аккаунт</p>
+                <h2>Войдите, чтобы открыть избранное маршрутов, историю поиска и быстрый доступ к своим поездкам.</h2>
+                <p className="page-copy">
+                  После входа маршруты можно сохранять в избранное, а история поисков
+                  и последние найденные поездки будут доступны в одном личном кабинете.
+                </p>
+                <div className="hero-chip-row">
+                  <span className="hero-chip">Избранные маршруты</span>
+                  <span className="hero-chip">История поисков</span>
+                  <span className="hero-chip">Личный кабинет</span>
+                </div>
+                <div className="account-promo-image">
+                  <img src={visuals.rail} alt="Авторизация и профиль" />
+                </div>
               </div>
             </div>
           </section>
@@ -219,13 +294,16 @@ export function AccountPage() {
               <div className="account-hero">
                 <div>
                   <p className="eyebrow">Личный кабинет</p>
-                  <h2>{user.username}, ваш профиль уже подключен к поиску маршрутов.</h2>
+                  <h2>{user.username}, ваш профиль подключен к поиску, истории и избранным маршрутам.</h2>
                   <p className="page-copy">
-                    Запросы, отправленные из интерфейса под этой учетной записью,
-                    сохраняются в истории и доступны на этой странице.
+                    Теперь вы можете сохранять лучшие маршруты в избранное, быстро
+                    возвращаться к ним и смотреть историю последних запросов.
                   </p>
                 </div>
                 <div className="account-hero-actions">
+                  <Link to="/favorites" className="secondary-button">
+                    Избранное
+                  </Link>
                   <Link to="/routes" className="primary-button">
                     Найти маршрут
                   </Link>
@@ -247,6 +325,10 @@ export function AccountPage() {
                 <div className="mini-card">
                   <span>Последних поисков</span>
                   <strong>{user.recent_searches?.length || 0}</strong>
+                </div>
+                <div className="mini-card">
+                  <span>Избранных маршрутов</span>
+                  <strong>{user.favorites_count || 0}</strong>
                 </div>
               </div>
             </section>

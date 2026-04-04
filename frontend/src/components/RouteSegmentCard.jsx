@@ -1,4 +1,5 @@
 import { formatDateTime, formatDurationBetween, formatPrice } from "../utils/format";
+import { TransportGlyph } from "./TransportGlyph";
 
 const transportLabels = {
   plane: "Самолет",
@@ -7,20 +8,13 @@ const transportLabels = {
   electric_train: "Электричка",
 };
 
-const transportCodes = {
-  plane: "✈",
-  train: "ЖД",
-  bus: "BUS",
-  electric_train: "ЭЛ",
-};
-
 export function RouteSegmentCard({ segment, index }) {
   return (
     <article className={`segment-card segment-card-${segment.transport_type}`}>
       <div className="segment-top">
         <div className="segment-title">
           <span className="segment-icon">
-            {transportCodes[segment.transport_type] || "TR"}
+            <TransportGlyph type={segment.transport_type} className="segment-icon-glyph" />
           </span>
           <div>
             <span className="segment-index">Сегмент {index + 1}</span>

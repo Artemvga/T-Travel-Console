@@ -21,12 +21,36 @@ MIN_TRANSFER_BUFFER_MINUTES = {
     Ticket.TransportType.BUS: 25,
     Ticket.TransportType.ELECTRIC_TRAIN: 20,
 }
-SEARCH_WINDOWS_HOURS = (12, 24, 72, 168)
-MAX_QUERY_ROWS = 180
-MAX_CANDIDATES_TOTAL = 24
+SEARCH_WINDOWS_HOURS = (12, 24, 72, 168, 336, 720)
+MAX_QUERY_ROWS = 360
+DIRECT_TARGET_ROWS = 48
+MAX_CANDIDATES_TOTAL = 40
 PER_DESTINATION_LIMIT = 3
 MAX_STATE_EXPANSIONS = 1800
 MAX_RESULTS = 8
+
+TRANSPORT_VISUALS = {
+    Ticket.TransportType.PLANE: {
+        "label": "Самолет",
+        "color": "#ffcf19",
+        "line_style": "arc",
+    },
+    Ticket.TransportType.TRAIN: {
+        "label": "Поезд",
+        "color": "#111111",
+        "line_style": "rail",
+    },
+    Ticket.TransportType.BUS: {
+        "label": "Автобус",
+        "color": "#6b6b6b",
+        "line_style": "road",
+    },
+    Ticket.TransportType.ELECTRIC_TRAIN: {
+        "label": "Электричка",
+        "color": "#c9a700",
+        "line_style": "commuter",
+    },
+}
 
 
 @dataclass(slots=True)
@@ -90,11 +114,20 @@ def resolve_city(value: str) -> City:
 
 
 def _ticket_segment(ticket: Ticket) -> dict:
+    visual = TRANSPORT_VISUALS.get(
+        ticket.transport_type,
+        {
+            "label": ticket.transport_type,
+            "color": "#111111",
+            "line_style": "line",
+        },
+    )
     return {
         "external_id": ticket.external_id,
         "carrier": ticket.carrier.name,
         "carrier_code": ticket.carrier.code,
         "transport_type": ticket.transport_type,
+        "transport_label": visual["label"],
         "from_city": ticket.from_city.name,
         "from_city_slug": ticket.from_city.slug,
         "from_city_region": ticket.from_city.region,
@@ -116,7 +149,31 @@ def _ticket_segment(ticket: Ticket) -> dict:
         "duration_minutes": ticket.duration_minutes,
         "is_direct": ticket.is_direct,
         "available_seats": ticket.available_seats,
+        "visual": visual,
     }
+
+
+def _build_transport_legend(segments: list[Ticket]) -> list[dict]:
+    totals: dict[str, int] = defaultdict(int)
+    for segment in segments:
+        totals[segment.transport_type] += segment.duration_minutes
+
+    legend = []
+    for transport_type, duration_minutes in totals.items():
+        visual = TRANSPORT_VISUALS.get(
+            transport_type,
+            {"label": transport_type, "color": "#111111", "line_style": "line"},
+        )
+        legend.append(
+            {
+                "transport_type": transport_type,
+                "label": visual["label"],
+                "color": visual["color"],
+                "line_style": visual["line_style"],
+                "duration_minutes": duration_minutes,
+            }
+        )
+    return legend
 
 
 def _serialize_path(path: RoutePath) -> dict:
@@ -150,6 +207,9 @@ def _serialize_path(path: RoutePath) -> dict:
             [waypoint["latitude"], waypoint["longitude"]] for waypoint in waypoints
         ],
         "segments": [_ticket_segment(ticket) for ticket in path.segments],
+        "transport_legend": _build_transport_legend(path.segments),
+        "map_mode": "hybrid",
+        "map_enabled": True,
     }
 
 
@@ -318,6 +378,26 @@ def _fetch_candidate_tickets(
     carrier_codes: list[str],
     transport_types: list[str],
 ) -> list[Ticket]:
+    transport_filter = tuple(sorted(set(transport_types or [])))
+    if transport_filter == (Ticket.TransportType.BUS,):
+        windows = (24, 72, 168, 336, 720)
+        max_query_rows = 720
+        direct_target_rows = 72
+        max_candidates_total = 72
+        per_destination_limit = 5
+    elif transport_filter == (Ticket.TransportType.ELECTRIC_TRAIN,):
+        windows = (6, 12, 24, 48, 72)
+        max_query_rows = 240
+        direct_target_rows = 32
+        max_candidates_total = 32
+        per_destination_limit = 4
+    else:
+        windows = SEARCH_WINDOWS_HOURS
+        max_query_rows = MAX_QUERY_ROWS
+        direct_target_rows = DIRECT_TARGET_ROWS
+        max_candidates_total = MAX_CANDIDATES_TOTAL
+        per_destination_limit = PER_DESTINATION_LIMIT
+
     queryset = Ticket.objects.filter(
         is_active=True,
         available_seats__gt=0,
@@ -340,10 +420,25 @@ def _fetch_candidate_tickets(
     seen_ids: set[int] = set()
     per_destination: dict[int, int] = defaultdict(int)
 
-    for hours in SEARCH_WINDOWS_HOURS:
+    def finalize_candidates() -> list[Ticket]:
+        return sorted(
+            candidates,
+            key=lambda ticket: _candidate_sort_key(ticket, target_city, priority),
+        )[:max_candidates_total]
+
+    for hours in windows:
+        window_queryset = queryset.filter(
+            departure_datetime__lt=ready_at + timedelta(hours=hours)
+        )
         batch = list(
-            queryset.filter(departure_datetime__lt=ready_at + timedelta(hours=hours))
-            .order_by("departure_datetime", "price")[:MAX_QUERY_ROWS]
+            window_queryset.filter(to_city_id=target_city.id)
+            .order_by("departure_datetime", "price")[:direct_target_rows]
+        )
+        batch.extend(
+            list(
+                window_queryset.exclude(to_city_id=target_city.id)
+                .order_by("departure_datetime", "price")[:max_query_rows]
+            )
         )
         if not batch:
             continue
@@ -353,7 +448,7 @@ def _fetch_candidate_tickets(
             if ticket.id in seen_ids:
                 continue
 
-            destination_limit = 4 if ticket.to_city_id == target_city.id else PER_DESTINATION_LIMIT
+            destination_limit = 4 if ticket.to_city_id == target_city.id else per_destination_limit
             if per_destination[ticket.to_city_id] >= destination_limit:
                 continue
 
@@ -361,13 +456,13 @@ def _fetch_candidate_tickets(
             seen_ids.add(ticket.id)
             per_destination[ticket.to_city_id] += 1
 
-            if len(candidates) >= MAX_CANDIDATES_TOTAL:
-                return candidates
+            if len(candidates) >= max_candidates_total and per_destination.get(target_city.id, 0) > 0:
+                return finalize_candidates()
 
-        if len(candidates) >= 6:
+        if len(candidates) >= 6 and per_destination.get(target_city.id, 0) > 0:
             break
 
-    return candidates
+    return finalize_candidates()
 
 
 def _search_paths(
@@ -398,6 +493,14 @@ def _search_paths(
     queue: list[tuple[float, int, int, SearchState]] = [
         (0.0, 0, 0, initial_state)
     ]
+    transport_filter = tuple(sorted(set(transport_types or [])))
+    state_expansion_limit = (
+        3200
+        if transport_filter == (Ticket.TransportType.BUS,)
+        else 2200
+        if transport_filter == (Ticket.TransportType.TRAIN,)
+        else MAX_STATE_EXPANSIONS
+    )
     counter = itertools.count(start=1)
     expansions = 0
     completed: list[RoutePath] = []
@@ -405,7 +508,7 @@ def _search_paths(
     best_progress: dict[tuple[int, int], float] = {}
     best_complete_score: float | None = None
 
-    while queue and expansions < MAX_STATE_EXPANSIONS:
+    while queue and expansions < state_expansion_limit:
         estimated_score, _, _, state = heapq.heappop(queue)
         expansions += 1
 
@@ -487,28 +590,40 @@ def build_routes(payload: dict) -> dict:
     departure_after = timezone.make_aware(
         datetime.combine(payload["departure_date"], payload["departure_time"])
     )
+    query_payload = {
+        "from_city": from_city.name,
+        "from_city_slug": from_city.slug,
+        "to_city": to_city.name,
+        "to_city_slug": to_city.slug,
+        "via_city": via_city.name if via_city else None,
+        "via_city_slug": via_city.slug if via_city else None,
+        "departure_date": payload["departure_date"].isoformat(),
+        "departure_time": payload["departure_time"].isoformat(timespec="minutes"),
+        "priority": payload["priority"],
+    }
+
+    if not Ticket.objects.filter(is_active=True).exists():
+        return {
+            "status": "empty",
+            "reason": "dataset_not_seeded",
+            "query": query_payload,
+            "message": "Билетная база еще не собрана. Сначала выполните генерацию и импорт локальных билетов.",
+            "best_route": None,
+            "alternative_routes": [],
+        }
 
     direct_only = payload.get("direct_only", False)
     allow_transfers = payload.get("allow_transfers", True)
     max_transfers = min(payload.get("max_transfers", 2), 5)
     max_segments = 1 if direct_only or not allow_transfers else min(6, max_transfers + 1)
     carrier_codes = payload.get("preferred_carriers") or []
-    transport_types = payload.get("preferred_transport_types") or []
+    transport_types = sorted(set(payload.get("preferred_transport_types") or []))
 
     if via_city and max_segments < 2:
         return {
             "status": "empty",
-            "query": {
-                "from_city": from_city.name,
-                "from_city_slug": from_city.slug,
-                "to_city": to_city.name,
-                "to_city_slug": to_city.slug,
-                "via_city": via_city.name,
-                "via_city_slug": via_city.slug,
-                "departure_date": payload["departure_date"].isoformat(),
-                "departure_time": payload["departure_time"].isoformat(timespec="minutes"),
-                "priority": payload["priority"],
-            },
+            "reason": "invalid_transit_constraints",
+            "query": query_payload,
             "message": "Для маршрута через транзитный город нужен минимум один переход.",
             "best_route": None,
             "alternative_routes": [],
@@ -572,17 +687,8 @@ def build_routes(payload: dict) -> dict:
         transit_suffix = f" через {via_city.name}" if via_city else ""
         return {
             "status": "empty",
-            "query": {
-                "from_city": from_city.name,
-                "from_city_slug": from_city.slug,
-                "to_city": to_city.name,
-                "to_city_slug": to_city.slug,
-                "via_city": via_city.name if via_city else None,
-                "via_city_slug": via_city.slug if via_city else None,
-                "departure_date": payload["departure_date"].isoformat(),
-                "departure_time": payload["departure_time"].isoformat(timespec="minutes"),
-                "priority": payload["priority"],
-            },
+            "reason": "no_routes_found",
+            "query": query_payload,
             "message": f"Маршруты{transit_suffix} по выбранным условиям не найдены.",
             "best_route": None,
             "alternative_routes": [],
@@ -593,17 +699,7 @@ def build_routes(payload: dict) -> dict:
 
     return {
         "status": "success",
-        "query": {
-            "from_city": from_city.name,
-            "from_city_slug": from_city.slug,
-            "to_city": to_city.name,
-            "to_city_slug": to_city.slug,
-            "via_city": via_city.name if via_city else None,
-            "via_city_slug": via_city.slug if via_city else None,
-            "departure_date": payload["departure_date"].isoformat(),
-            "departure_time": payload["departure_time"].isoformat(timespec="minutes"),
-            "priority": payload["priority"],
-        },
+        "query": query_payload,
         "message": (
             f"Найдено {len(ranked_paths)} маршрутов."
             if via_city is None

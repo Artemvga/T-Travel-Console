@@ -1,4 +1,4 @@
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from apps.carriers.models import Carrier
@@ -11,6 +11,29 @@ TRANSPORT_DIRS = {
     "bus": "data/buses/by_operator",
     "electric_train": "data/commuter_trains",
 }
+
+FALLBACK_CARRIER_NAMES = {
+    "aeroflot": "Аэрофлот",
+    "s7": "S7 Airlines",
+    "pobeda": "Победа",
+    "rzd": "РЖД",
+    "rzd_prigorod": "РЖД Пригород",
+    "central_ppk": "ЦППК",
+}
+
+
+def _fallback_payload(file_path, transport_type: str) -> dict:
+    code = file_path.stem
+    return {
+        "id": code,
+        "company": FALLBACK_CARRIER_NAMES.get(
+            code,
+            code.replace("_", " ").replace("-", " ").title(),
+        ),
+        "reference_url": "",
+        "category": transport_type,
+        "source_recovery": "filename_fallback",
+    }
 
 
 class Command(BaseCommand):
@@ -27,7 +50,10 @@ class Command(BaseCommand):
                     continue
 
                 for file_path in sorted(directory.glob("*.json")):
-                    payload = load_json(str(file_path))
+                    try:
+                        payload = load_json(str(file_path))
+                    except CommandError:
+                        payload = _fallback_payload(file_path, transport_type)
                     code = payload.get("id") or file_path.stem
                     carrier, is_created = Carrier.objects.update_or_create(
                         code=code,

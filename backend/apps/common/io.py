@@ -14,9 +14,10 @@ def resolve_data_path(path_value: str) -> Path:
 
     project_root = Path(settings.PROJECT_ROOT)
     data_dir = Path(settings.DATA_DIR)
+    data_relative = Path(*path.parts[1:]) if path.parts and path.parts[0] == "data" else path
     candidates = [
+        data_dir / data_relative,
         project_root / path,
-        data_dir / path,
         Path(settings.BASE_DIR) / path,
     ]
 

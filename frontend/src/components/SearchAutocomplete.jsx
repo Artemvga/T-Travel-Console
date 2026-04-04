@@ -100,12 +100,15 @@ export function SearchAutocomplete({
   };
 
   return (
-    <div className="autocomplete-field">
+    <div className={`autocomplete-field ${open ? "autocomplete-field-open" : ""}`}>
       <label>{label}</label>
       <div className="autocomplete-input-shell">
         <span className="autocomplete-icon">⌕</span>
         <input
           type="text"
+          role="combobox"
+          aria-expanded={open}
+          aria-autocomplete="list"
           value={query}
           placeholder={placeholder}
           onChange={(event) => {
@@ -142,7 +145,7 @@ export function SearchAutocomplete({
       {helper ? <p className="field-helper">{helper}</p> : null}
 
       {open && (loading || suggestions.length || error) ? (
-        <div className="autocomplete-dropdown">
+        <div className="autocomplete-dropdown" role="listbox">
           {loading ? <span>Ищем города...</span> : null}
           {!loading && error ? <span>{error}</span> : null}
           {!loading && !error && !suggestions.length ? (
@@ -154,10 +157,15 @@ export function SearchAutocomplete({
               <button
                 key={city.slug}
                 type="button"
+                role="option"
+                aria-selected={activeIndex === index}
                 className={`autocomplete-item ${
                   activeIndex === index ? "autocomplete-item-active" : ""
                 }`}
-                onMouseDown={() => handleSelect(city)}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  handleSelect(city);
+                }}
               >
                 <strong>{city.name}</strong>
                 <small>

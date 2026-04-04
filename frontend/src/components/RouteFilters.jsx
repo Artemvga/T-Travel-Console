@@ -1,15 +1,11 @@
-const priorities = [
-  { value: "optimal", label: "Оптимальный" },
-  { value: "cheapest", label: "Дешевле" },
-  { value: "fastest", label: "Быстрее" },
-];
+import { TransportGlyph } from "./TransportGlyph";
 
-const transportLabels = {
-  plane: "Самолет",
-  train: "Поезд",
-  bus: "Автобус",
-  electric_train: "Электричка",
-};
+const transportOptions = [
+  { value: "plane", label: "Самолет" },
+  { value: "train", label: "Поезд" },
+  { value: "bus", label: "Автобус" },
+  { value: "electric_train", label: "Электричка" },
+];
 
 export function RouteFilters({
   carriers,
@@ -28,36 +24,20 @@ export function RouteFilters({
   };
 
   return (
-    <div className="filters-grid">
-      <section className="filter-card">
+    <div className="filter-table-grid">
+      <section className="filter-table-cell">
         <div className="filter-card-header">
-          <p className="eyebrow">Приоритет</p>
-          <p>Что важнее в итоговой выдаче.</p>
-        </div>
-        <div className="choice-group">
-          {priorities.map((priority) => (
-            <label key={priority.value} className="choice-chip">
-              <input
-                type="radio"
-                name="priority"
-                value={priority.value}
-                checked={values.priority === priority.value}
-                onChange={() => onChange("priority", priority.value)}
-              />
-              <span>{priority.label}</span>
-            </label>
-          ))}
-        </div>
-      </section>
-
-      <section className="filter-card">
-        <div className="filter-card-header">
-          <p className="eyebrow">Предпочитаемые компании</p>
-          <p>Автобусные операторы подбираются автоматически, вручную выбирать их не нужно.</p>
+          <p className="eyebrow">Компании</p>
+          <p>Автобусных операторов выбираем автоматически, вручную доступны авиа и ж/д.</p>
         </div>
         <div className="choice-group carrier-choice-group">
           {visibleCarriers.map((carrier) => (
-            <label key={carrier.code} className="choice-chip">
+            <label
+              key={carrier.code}
+              className={`choice-chip ${
+                values.preferred_carriers.includes(carrier.code) ? "choice-chip-active" : ""
+              }`}
+            >
               <input
                 type="checkbox"
                 checked={values.preferred_carriers.includes(carrier.code)}
@@ -67,85 +47,101 @@ export function RouteFilters({
             </label>
           ))}
           {!visibleCarriers.length ? (
-            <p className="field-helper">Компании еще загружаются.</p>
+            <p className="field-helper">Компании появятся после загрузки витрины.</p>
           ) : null}
         </div>
       </section>
 
-      <section className="filter-card">
+      <section className="filter-table-cell">
         <div className="filter-card-header">
-          <p className="eyebrow">Виды транспорта</p>
-          <p>Оставьте пустым, если хотите увидеть полный микс вариантов.</p>
+          <p className="eyebrow">Транспорт</p>
+          <p>Оставьте только нужные типы транспорта, если хотите сузить выдачу.</p>
         </div>
-        <div className="choice-group">
-          {Object.entries(transportLabels).map(([value, label]) => (
-            <label key={value} className="choice-chip">
+        <div className="choice-group choice-group-compact transport-choice-grid">
+          {transportOptions.map((option) => (
+            <label
+              key={option.value}
+              className={`choice-chip choice-chip-transport ${
+                values.preferred_transport_types.includes(option.value)
+                  ? "choice-chip-active"
+                  : ""
+              }`}
+            >
               <input
                 type="checkbox"
-                checked={values.preferred_transport_types.includes(value)}
+                checked={values.preferred_transport_types.includes(option.value)}
                 onChange={() =>
-                  toggleListValue("preferred_transport_types", value)
+                  toggleListValue("preferred_transport_types", option.value)
                 }
               />
-              <span>{label}</span>
+              <span className="choice-chip-icon choice-chip-icon-glyph">
+                <TransportGlyph type={option.value} />
+              </span>
+              <span>{option.label}</span>
             </label>
           ))}
         </div>
       </section>
 
-      <section className="filter-card">
+      <section className="filter-table-cell">
         <div className="filter-card-header">
-          <p className="eyebrow">Дополнительно</p>
-          <p>Быстрые ограничения для более узкого сценария поиска.</p>
+          <p className="eyebrow">Режим маршрута</p>
+          <p>Выберите прямой путь или поиск со стыковками. Для транзита пересадки включаются сами.</p>
         </div>
-        <div className="settings-grid">
-          <label className="switch-row">
-            <input
-              type="checkbox"
-              checked={values.direct_only}
-              disabled={transitLocked}
-              onChange={(event) => {
-                const checked = event.target.checked;
-                onChange("direct_only", checked);
-                if (checked) {
-                  onChange("allow_transfers", false);
-                  onChange("max_transfers", 0);
-                }
-              }}
-            />
-            <span>Только прямые маршруты</span>
-          </label>
 
-          <label className="switch-row">
-            <input
-              type="checkbox"
-              checked={values.allow_transfers}
-              disabled={values.direct_only || transitLocked}
-              onChange={(event) => onChange("allow_transfers", event.target.checked)}
-            />
-            <span>Разрешить пересадки</span>
-          </label>
-
-          <label className="field-stack">
-            <span>Максимум пересадок</span>
-            <input
-              type="number"
-              min="0"
-              max="5"
-              value={values.max_transfers}
-              disabled={!values.allow_transfers || values.direct_only}
-              onChange={(event) =>
-                onChange("max_transfers", Number(event.target.value))
+        <div className="toggle-row">
+          <button
+            type="button"
+            className={`toggle-pill ${values.direct_only ? "toggle-pill-active" : ""}`}
+            disabled={transitLocked}
+            onClick={() => {
+              onChange("direct_only", true);
+              onChange("allow_transfers", false);
+              onChange("max_transfers", 0);
+            }}
+          >
+            Без пересадок
+          </button>
+          <button
+            type="button"
+            className={`toggle-pill ${values.allow_transfers && !values.direct_only ? "toggle-pill-active" : ""}`}
+            onClick={() => {
+              onChange("direct_only", false);
+              onChange("allow_transfers", true);
+              if (!values.max_transfers) {
+                onChange("max_transfers", transitLocked ? 1 : 1);
               }
-            />
-          </label>
-
-          {transitLocked ? (
-            <p className="field-helper">
-              Для маршрута через выбранный транзитный город пересадки включены автоматически.
-            </p>
-          ) : null}
+            }}
+          >
+            С пересадками
+          </button>
         </div>
+
+        {values.allow_transfers && !values.direct_only ? (
+          <div className="field-stack route-transfers-stack">
+            <span>Максимум пересадок</span>
+            <div className="transfer-chip-group">
+              {[1, 2, 3, 4, 5].map((count) => {
+                return (
+                  <button
+                    key={count}
+                    type="button"
+                    className={`transfer-chip ${values.max_transfers === count ? "transfer-chip-active" : ""}`}
+                    onClick={() => onChange("max_transfers", count)}
+                  >
+                    {count}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+
+        {transitLocked ? (
+          <p className="field-helper">
+            Транзитный город выбран, поэтому система оставляет минимум одну пересадку.
+          </p>
+        ) : null}
       </section>
     </div>
   );

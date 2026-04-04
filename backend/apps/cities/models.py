@@ -10,9 +10,12 @@ class City(models.Model):
     latitude = models.FloatField()
     longitude = models.FloatField()
     has_airport = models.BooleanField(default=False)
+    has_international_airport = models.BooleanField(default=False)
     has_train_station = models.BooleanField(default=False)
     has_bus_station = models.BooleanField(default=False)
     has_commuter_station = models.BooleanField(default=False)
+    is_rail_hub = models.BooleanField(default=False)
+    is_bus_hub = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

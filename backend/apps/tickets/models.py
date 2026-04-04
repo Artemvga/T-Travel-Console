@@ -34,6 +34,9 @@ class Ticket(models.Model):
     is_direct = models.BooleanField(default=True)
     available_seats = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
+    generation_batch = models.CharField(max_length=96, blank=True, default="")
+    route_signature = models.CharField(max_length=64, blank=True, default="")
+    generation_meta = models.JSONField(default=dict, blank=True)
     last_synced_at = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -42,10 +45,30 @@ class Ticket(models.Model):
         ordering = ("departure_datetime", "price")
         indexes = [
             models.Index(fields=("from_city", "departure_datetime", "is_active")),
+            models.Index(
+                fields=("from_city", "departure_datetime", "transport_type", "is_active")
+            ),
             models.Index(fields=("from_city", "to_city", "departure_datetime")),
             models.Index(fields=("transport_type", "departure_datetime", "is_active")),
             models.Index(fields=("carrier", "departure_datetime")),
             models.Index(fields=("is_active", "departure_datetime")),
+            models.Index(fields=("generation_batch", "departure_datetime")),
+            models.Index(fields=("route_signature", "departure_datetime")),
+            models.Index(
+                fields=("from_city", "departure_datetime"),
+                name="tickets_act_from_dep_idx",
+                condition=models.Q(is_active=True, available_seats__gt=0),
+            ),
+            models.Index(
+                fields=("from_city", "transport_type", "departure_datetime"),
+                name="tickets_act_from_ttype_dep_idx",
+                condition=models.Q(is_active=True, available_seats__gt=0),
+            ),
+            models.Index(
+                fields=("from_city", "to_city", "departure_datetime"),
+                name="tickets_act_from_to_dep_idx",
+                condition=models.Q(is_active=True, available_seats__gt=0),
+            ),
         ]
 
     def __str__(self) -> str:

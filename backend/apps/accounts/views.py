@@ -6,7 +6,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.routes.models import RouteSearchLog
+from apps.routes.models import RouteFavorite, RouteSearchLog
 
 from .serializers import LoginSerializer, RegisterSerializer
 
@@ -24,6 +24,7 @@ def _serialize_user(user):
         "id": user.id,
         "username": user.username,
         "date_joined": timezone.localtime(user.date_joined).isoformat(),
+        "favorites_count": RouteFavorite.objects.filter(user=user).count(),
         "recent_searches": [
             {
                 "id": item.id,
@@ -107,4 +108,3 @@ class MeAPIView(APIView):
 
     def get(self, request):
         return Response(_serialize_user(request.user))
-

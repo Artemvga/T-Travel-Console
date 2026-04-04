@@ -1,13 +1,10 @@
 import { useState } from "react";
 
+import { CityMap } from "../components/CityMap";
 import { CityInfoCard } from "../components/CityInfoCard";
-import { EmptyState } from "../components/EmptyState";
-import { ErrorState } from "../components/ErrorState";
 import { Footer } from "../components/Footer";
-import { Loader } from "../components/Loader";
 import { Navbar } from "../components/Navbar";
 import { SearchAutocomplete } from "../components/SearchAutocomplete";
-import { visuals } from "../content/visuals";
 import { getApiError, getCityDetail } from "../services/api";
 
 export function CityInfoPage() {
@@ -47,7 +44,11 @@ export function CityInfoPage() {
       <Navbar />
 
       <main className="page">
-        <section className="content-card content-card-search city-search-card">
+        <section
+          className={`content-card content-card-search city-search-card ${
+            cityDetail ? "city-search-card-expanded" : ""
+          }`}
+        >
           <div className="city-search-layout">
             <form className="city-search-form" onSubmit={handleSubmit}>
               <div className="section-head">
@@ -57,15 +58,15 @@ export function CityInfoPage() {
                 </div>
               </div>
               <p className="page-copy">
-                Покажем население, регион, инфраструктуру, активность по билетам
-                и направления, в которых город чаще всего участвует.
+                Покажем население, регион, инфраструктуру, активность по билетам,
+                популярные направления и сразу отметим город на Яндекс Карте.
               </p>
               <SearchAutocomplete
                 label="Город"
                 placeholder="Например, Новосибирск"
                 selectedCity={selectedCity}
                 onSelect={handleSelect}
-                helper="Можно искать по полному названию, части названия и популярным сокращениям."
+                helper="Можно искать по названию, части названия и популярным сокращениям."
               />
               <div className="form-actions">
                 <button type="submit" className="primary-button" disabled={!selectedCity || loading}>
@@ -74,29 +75,45 @@ export function CityInfoPage() {
               </div>
             </form>
 
-            <div className="city-search-visual">
-              <img src={visuals.hero} alt="Городской пейзаж" />
-            </div>
+            <CityMap
+              city={cityDetail || selectedCity}
+              title={cityDetail?.name || selectedCity?.name || "Выберите город"}
+            />
+          </div>
+
+          <div className="city-search-panel-state">
+            {loading ? (
+              <div className="inline-alert">Загружаем информацию о городе...</div>
+            ) : null}
+
+            {!loading && error ? (
+              <div className="inline-alert inline-alert-error" role="alert">{error}</div>
+            ) : null}
+
+            {!loading && !error && !cityDetail ? (
+              <div className="city-search-empty-fill">
+                <article className="city-search-empty-card">
+                  <span>Что появится после выбора</span>
+                  <strong>Покажем транспортный профиль, направления, хабы и активность по билетам.</strong>
+                </article>
+                <article className="city-search-empty-card">
+                  <span>Как открыть профиль</span>
+                  <strong>Начните вводить город, выберите вариант из выпадающего списка и нажмите кнопку.</strong>
+                </article>
+                <article className="city-search-empty-card">
+                  <span>Карта уже готова</span>
+                  <strong>Карта справа подхватит выбранный город и отобразит его без перезагрузки страницы.</strong>
+                </article>
+              </div>
+            ) : null}
+
+            {!loading && !error && cityDetail ? (
+              <div className="city-search-expanded-content">
+                <CityInfoCard city={cityDetail} embedded />
+              </div>
+            ) : null}
           </div>
         </section>
-
-        {loading ? <Loader text="Загружаем информацию о городе..." /> : null}
-
-        {!loading && error ? (
-          <ErrorState
-            title="Не удалось получить данные"
-            message={error}
-          />
-        ) : null}
-
-        {!loading && !error && cityDetail ? <CityInfoCard city={cityDetail} /> : null}
-
-        {!loading && !error && !cityDetail ? (
-          <EmptyState
-            title="Город пока не выбран"
-            message="Найдите город через поиск и нажмите кнопку, чтобы увидеть полную карточку."
-          />
-        ) : null}
       </main>
 
       <Footer />

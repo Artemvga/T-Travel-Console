@@ -21,7 +21,7 @@
 
 ## Стек
 
-- Backend: Python, Django, Django REST Framework, SQLite
+- Backend: Python, Django, Django REST Framework, SQLite / PostgreSQL
 - Frontend: React, Vite, Axios, React Router
 - Данные: JSON / JSONL из `data/`
 - Карта: Yandex Maps API
@@ -95,6 +95,61 @@ npm run dev:frontend
 
 По умолчанию frontend будет доступен на `http://127.0.0.1:5173`.
 
+## PostgreSQL для больших датасетов
+
+Для `10M+` билетов, и особенно для `15M`, используйте PostgreSQL вместо SQLite.
+
+1. Установите PostgreSQL 16 и создайте БД:
+
+```bash
+psql postgres -c "CREATE ROLE ttravel LOGIN PASSWORD 'ttravel';"
+psql postgres -c "CREATE DATABASE ttravel OWNER ttravel;"
+```
+
+2. Задайте backend-окружение:
+
+```bash
+cd /Users/artem/Documents/T-Travel-Console/backend
+cp ../.env.example .env
+export DATABASE_URL=postgresql://ttravel:ttravel@127.0.0.1:5432/ttravel
+export POSTGRES_CONN_MAX_AGE=300
+```
+
+3. Установите зависимости и миграции:
+
+```bash
+./.venv/bin/pip install -r requirements.txt
+./.venv/bin/python manage.py migrate
+```
+
+4. Загрузите данные вручную, без `npm run dev`:
+
+```bash
+./.venv/bin/python manage.py import_cities
+./.venv/bin/python manage.py import_carriers
+
+./.venv/bin/python manage.py regenerate_tickets \
+  --total 15000000 \
+  --seed 20260404 \
+  --batch-id tickets-15m \
+  --start-date 2026-04-10 \
+  --end-date 2026-12-31 \
+  --jsonl-dir /Volumes/FastSSD/TTravel-15m
+
+./.venv/bin/python manage.py import_tickets \
+  --jsonl-dir /Volumes/FastSSD/TTravel-15m \
+  --batch-id tickets-15m \
+  --replace-batch
+
+./.venv/bin/python manage.py refresh_catalog_snapshots
+```
+
+5. После импорта обновите статистику PostgreSQL:
+
+```bash
+psql "$DATABASE_URL" -c "VACUUM ANALYZE tickets_ticket;"
+```
+
 ## Запуск backend и frontend вместе
 
 После того как backend-виртуальное окружение создано и зависимости установлены:
@@ -109,6 +164,7 @@ npm run dev
 
 - поднимает Django backend;
 - если в SQLite ещё нет активных билетов, запускает импорт данных;
+- если настроен PostgreSQL и активных билетов нет, не запускает автоматический сидинг и ждет ручной загрузки;
 - запускает Vite frontend.
 
 ## Полезные backend-команды
@@ -134,6 +190,17 @@ python manage.py cleanup_tickets
 - `DJANGO_SECRET_KEY`
 - `DJANGO_ALLOWED_HOSTS`
 - `DJANGO_SQLITE_NAME`
+- `DATABASE_URL`
+- `POSTGRES_DB`
+- `POSTGRES_USER`
+- `POSTGRES_PASSWORD`
+- `POSTGRES_HOST`
+- `POSTGRES_PORT`
+- `POSTGRES_CONN_MAX_AGE`
+- `POSTGRES_CONN_HEALTH_CHECKS`
+- `POSTGRES_APPLICATION_NAME`
+- `POSTGRES_SSLMODE`
+- `POSTGRES_OPTIONS`
 - `DJANGO_TIME_ZONE`
 - `VITE_API_BASE_URL`
 - `VITE_YANDEX_MAPS_API_KEY`

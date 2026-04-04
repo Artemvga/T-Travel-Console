@@ -40,9 +40,14 @@ class Command(BaseCommand):
                         "latitude": float(item.get("lat", item.get("latitude"))),
                         "longitude": float(item.get("lon", item.get("longitude"))),
                         "has_airport": bool(item.get("has_airport", False)),
+                        "has_international_airport": bool(
+                            item.get("has_international_airport", False)
+                        ),
                         "has_train_station": bool(item.get("has_train_station", False)),
                         "has_bus_station": bool(item.get("has_bus_station", False)),
                         "has_commuter_station": bool(item.get("has_commuter_station", False)),
+                        "is_rail_hub": bool(item.get("is_rail_hub", False)),
+                        "is_bus_hub": bool(item.get("is_bus_hub", False)),
                     },
                 )
                 seen_slugs.add(city.slug)

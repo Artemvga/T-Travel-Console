@@ -3,7 +3,10 @@ import axios from "axios";
 const AUTH_TOKEN_KEY = "t-travel-auth-token";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "",
+  baseURL:
+    import.meta.env.VITE_API_BASE_URL ||
+    import.meta.env.VITE_BACKEND_ORIGIN ||
+    "",
   timeout: 10000,
 });
 
@@ -46,6 +49,11 @@ export async function getCarriers() {
 
 export async function getStats() {
   const response = await api.get("/api/stats/");
+  return response.data;
+}
+
+export async function getGenerationStatus() {
+  const response = await api.get("/api/tickets/generation-status/");
   return response.data;
 }
 
@@ -93,21 +101,38 @@ export async function getMe() {
   return response.data;
 }
 
+export async function getFavoriteRoutes() {
+  const response = await api.get("/api/routes/favorites/");
+  return response.data;
+}
+
+export async function saveFavoriteRoute(payload) {
+  const response = await api.post("/api/routes/favorites/", payload);
+  return response.data;
+}
+
+export async function removeFavoriteRoute(id) {
+  const response = await api.delete(`/api/routes/favorites/${id}/`);
+  return response.data;
+}
+
 export function getApiError(error, fallbackMessage) {
   if (!error?.response) {
-    return "Backend API недоступен или еще запускается. Используйте npm run dev и подождите пару секунд, пока Django пройдет healthcheck.";
+    return "Ошибка сервера (HTTP 503): сервер временно недоступен.";
   }
 
+  const statusCode = error.response.status || 500;
+
   if (typeof error?.response?.data === "string") {
-    return error.response.data;
+    return `Ошибка сервера (HTTP ${statusCode}): ${error.response.data}`;
   }
 
   if (error?.response?.data?.detail) {
-    return error.response.data.detail;
+    return `Ошибка сервера (HTTP ${statusCode}): ${error.response.data.detail}`;
   }
 
   if (error?.response?.data?.message) {
-    return error.response.data.message;
+    return `Ошибка сервера (HTTP ${statusCode}): ${error.response.data.message}`;
   }
 
   if (error?.response?.data && typeof error.response.data === "object") {
@@ -115,9 +140,9 @@ export function getApiError(error, fallbackMessage) {
       .flat()
       .find(Boolean);
     if (firstFieldError) {
-      return firstFieldError;
+      return `Ошибка сервера (HTTP ${statusCode}): ${firstFieldError}`;
     }
   }
 
-  return fallbackMessage;
+  return `Ошибка сервера (HTTP ${statusCode}): ${fallbackMessage}`;
 }

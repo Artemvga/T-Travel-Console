@@ -2,6 +2,8 @@ from datetime import time
 
 from rest_framework import serializers
 
+from .models import RouteFavorite
+
 
 class RouteBuildRequestSerializer(serializers.Serializer):
     from_city = serializers.CharField()
@@ -74,3 +76,80 @@ class RouteBuildRequestSerializer(serializers.Serializer):
             )
 
         return attrs
+
+
+class RouteFavoriteWriteSerializer(serializers.Serializer):
+    route_title = serializers.CharField(required=False, allow_blank=True, max_length=120)
+    query = serializers.DictField()
+    route_data = serializers.DictField()
+
+    def validate_route_data(self, value):
+        if not value.get("segments"):
+            raise serializers.ValidationError("Нечего сохранять: маршрут пустой.")
+        if not value.get("waypoints"):
+            raise serializers.ValidationError("Маршрут должен содержать точки пути.")
+        return value
+
+    def validate_query(self, value):
+        required_fields = ("from_city_slug", "to_city_slug", "departure_date", "departure_time", "priority")
+        missing = [field for field in required_fields if not value.get(field)]
+        if missing:
+            raise serializers.ValidationError(
+                f"Недостаточно данных для сохранения маршрута: {', '.join(missing)}."
+            )
+        return value
+
+
+class RouteFavoriteSerializer(serializers.ModelSerializer):
+    from_city = serializers.SerializerMethodField()
+    via_city = serializers.SerializerMethodField()
+    to_city = serializers.SerializerMethodField()
+    query = serializers.SerializerMethodField()
+    route = serializers.JSONField(source="route_data")
+
+    class Meta:
+        model = RouteFavorite
+        fields = (
+            "id",
+            "route_title",
+            "from_city",
+            "via_city",
+            "to_city",
+            "departure_at",
+            "priority_mode",
+            "created_at",
+            "query",
+            "route",
+        )
+
+    @staticmethod
+    def _serialize_city(city):
+        if not city:
+            return None
+        return {
+            "name": city.name,
+            "slug": city.slug,
+            "region": city.region,
+        }
+
+    def get_from_city(self, obj):
+        return self._serialize_city(obj.from_city)
+
+    def get_via_city(self, obj):
+        return self._serialize_city(obj.via_city)
+
+    def get_to_city(self, obj):
+        return self._serialize_city(obj.to_city)
+
+    def get_query(self, obj):
+        return {
+            "from_city": obj.from_city.name if obj.from_city else None,
+            "from_city_slug": obj.from_city.slug if obj.from_city else None,
+            "via_city": obj.via_city.name if obj.via_city else None,
+            "via_city_slug": obj.via_city.slug if obj.via_city else None,
+            "to_city": obj.to_city.name if obj.to_city else None,
+            "to_city_slug": obj.to_city.slug if obj.to_city else None,
+            "departure_date": obj.departure_at.date().isoformat(),
+            "departure_time": obj.departure_at.time().isoformat(timespec="minutes"),
+            "priority": obj.priority_mode,
+        }

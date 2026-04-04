@@ -142,10 +142,35 @@ def main() -> None:
     with open(trains_dir / "rzd.json", "w", encoding="utf-8") as f:
         json.dump(rzd_doc, f, ensure_ascii=False, indent=2)
 
+    commuter_dir = DATA / "commuter_trains"
+    commuter_dir.mkdir(parents=True, exist_ok=True)
+    commuter_docs = [
+        {
+            "schema_version": 1,
+            "category": "electric_train",
+            "id": "rzd_prigorod",
+            "company": "РЖД Пригород",
+            "reference_url": "https://pass.rzd.ru/",
+            "tickets": [],
+        },
+        {
+            "schema_version": 1,
+            "category": "electric_train",
+            "id": "central_ppk",
+            "company": "ЦППК",
+            "reference_url": "https://central-ppk.ru/",
+            "tickets": [],
+        },
+    ]
+    for doc in commuter_docs:
+        with open(commuter_dir / f"{doc['id']}.json", "w", encoding="utf-8") as f:
+            json.dump(doc, f, ensure_ascii=False, indent=2)
+
     index_air_rail = {
         "meta": {"description": "Авиа и ж/д"},
         "planes": [p[1] for p in planes],
         "trains": ["РЖД"],
+        "commuter_trains": [doc["company"] for doc in commuter_docs],
     }
     with open(DATA / "planes_trains_index.json", "w", encoding="utf-8") as f:
         json.dump(index_air_rail, f, ensure_ascii=False, indent=2)

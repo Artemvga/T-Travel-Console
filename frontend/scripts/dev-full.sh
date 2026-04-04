@@ -7,7 +7,8 @@ FRONTEND_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 ROOT_DIR=$(CDPATH= cd -- "$FRONTEND_DIR/.." && pwd)
 BACKEND_DIR="$ROOT_DIR/backend"
 BACKEND_STARTED_BY_SCRIPT=0
-SEED_TICKET_LIMIT="${T_TRAVEL_MAX_TICKETS_PER_FILE:-}"
+SEED_TICKET_LIMIT="${T_TRAVEL_MAX_TICKETS_PER_FILE:-5000}"
+AUTO_SEED="${T_TRAVEL_AUTO_SEED:-1}"
 BACKEND_HOST="127.0.0.1"
 BACKEND_PORT=""
 
@@ -23,6 +24,10 @@ is_port_listening() {
 
 is_backend_ready() {
   curl -fsS "http://${BACKEND_HOST}:$1/api/health/" >/dev/null 2>&1
+}
+
+is_postgres_configured() {
+  [ "${DATABASE_URL:-}" != "" ] || [ "${POSTGRES_DB:-}" != "" ]
 }
 
 wait_for_backend() {
@@ -58,12 +63,19 @@ find_backend_port() {
 trap cleanup EXIT INT TERM
 
 cd "$BACKEND_DIR"
-if ! ./.venv/bin/python manage.py shell -c "from apps.tickets.models import Ticket; raise SystemExit(0 if Ticket.objects.filter(is_active=True).exists() else 1)" >/dev/null 2>&1; then
-  echo "No active tickets found in SQLite, importing current dataset for local development..."
-  if [ "${SEED_TICKET_LIMIT}" = "" ]; then
-    ./.venv/bin/python manage.py seed_all >/dev/null
+./.venv/bin/python manage.py migrate >/dev/null
+
+if [ "${AUTO_SEED}" = "1" ] && ! ./.venv/bin/python manage.py shell -c "from apps.tickets.models import Ticket; raise SystemExit(0 if Ticket.objects.filter(is_active=True).exists() else 1)" >/dev/null 2>&1; then
+  if is_postgres_configured; then
+    echo "PostgreSQL is configured and no active tickets were found."
+    echo "Skipping automatic seed. Run reseed_tickets or import_tickets manually before opening the route page."
   else
-    ./.venv/bin/python manage.py seed_all --max-tickets-per-file "$SEED_TICKET_LIMIT" >/dev/null
+    echo "No active tickets found in SQLite, importing current dataset for local development..."
+    if [ "${SEED_TICKET_LIMIT}" = "" ]; then
+      ./.venv/bin/python manage.py seed_all >/dev/null
+    else
+      ./.venv/bin/python manage.py seed_all --max-tickets-per-file "$SEED_TICKET_LIMIT" >/dev/null
+    fi
   fi
 fi
 
@@ -76,7 +88,6 @@ fi
 if is_backend_ready "$BACKEND_PORT"; then
   echo "Backend already running on ${BACKEND_HOST}:${BACKEND_PORT}, reusing existing process."
 else
-  ./.venv/bin/python manage.py migrate >/dev/null
   ./.venv/bin/python manage.py runserver "${BACKEND_HOST}:${BACKEND_PORT}" --noreload &
   BACKEND_PID=$!
   BACKEND_STARTED_BY_SCRIPT=1

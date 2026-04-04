@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 
+import { loadYandexMaps, waitForYandexReady } from "../utils/yandexMaps";
+import { formatDuration } from "../utils/format";
+
 const transportColors = {
   plane: "#ffcf19",
   train: "#111111",
@@ -13,62 +16,6 @@ const transportLabels = {
   bus: "Автобус",
   electric_train: "Электричка",
 };
-
-let yandexMapsPromise = null;
-
-function waitForReady(ymaps) {
-  return new Promise((resolve) => {
-    ymaps.ready(() => resolve(ymaps));
-  });
-}
-
-function asPromise(vowLike) {
-  return new Promise((resolve, reject) => {
-    vowLike.then(resolve, reject);
-  });
-}
-
-function loadYandexMaps(apiKey) {
-  if (typeof window === "undefined") {
-    return Promise.reject(new Error("window is not available"));
-  }
-
-  if (window.ymaps) {
-    return Promise.resolve(window.ymaps);
-  }
-
-  if (yandexMapsPromise) {
-    return yandexMapsPromise;
-  }
-
-  yandexMapsPromise = new Promise((resolve, reject) => {
-    const existingScript = document.querySelector('script[data-yandex-maps="true"]');
-    const handleLoad = () => {
-      if (window.ymaps) {
-        resolve(window.ymaps);
-        return;
-      }
-      reject(new Error("Yandex Maps API loaded without ymaps object"));
-    };
-    const handleError = () => reject(new Error("Failed to load Yandex Maps API"));
-
-    if (existingScript) {
-      existingScript.addEventListener("load", handleLoad, { once: true });
-      existingScript.addEventListener("error", handleError, { once: true });
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = `https://api-maps.yandex.ru/2.1/?apikey=${apiKey}&lang=ru_RU&load=package.full`;
-    script.async = true;
-    script.dataset.yandexMaps = "true";
-    script.addEventListener("load", handleLoad, { once: true });
-    script.addEventListener("error", handleError, { once: true });
-    document.body.appendChild(script);
-  });
-
-  return yandexMapsPromise;
-}
 
 function createArcPath(from, to, curveFactor = 0.16) {
   const [lat1, lon1] = from;
@@ -94,6 +41,8 @@ function createArcPath(from, to, curveFactor = 0.16) {
 }
 
 function addFallbackLine(ymaps, mapInstance, segment, options = {}) {
+  const strokeColor =
+    options.strokeColor || segment.visual?.color || transportColors[segment.transport_type] || "#141414";
   const coords =
     options.coordinates ||
     [segment.from_coordinates, segment.to_coordinates];
@@ -105,7 +54,7 @@ function addFallbackLine(ymaps, mapInstance, segment, options = {}) {
       balloonContentBody: `${transportLabels[segment.transport_type] || segment.transport_type} • ${segment.carrier}`,
     },
     {
-      strokeColor: transportColors[segment.transport_type] || "#141414",
+      strokeColor,
       strokeWidth: options.strokeWidth || 5,
       strokeOpacity: options.strokeOpacity || 0.92,
       strokeStyle: options.strokeStyle,
@@ -130,98 +79,23 @@ function addAirRoute(ymaps, mapInstance, segment) {
   );
 }
 
-function styleRoadRoute(route, color) {
-  route.getPaths?.().options.set({
-    strokeColor: color,
-    strokeWidth: 5,
-    opacity: 0.92,
-  });
-  route.getWayPoints?.().options.set({
-    visible: false,
-  });
-}
-
-function addRoadRoute(ymaps, mapInstance, segment) {
-  return asPromise(
-    ymaps.route([segment.from_coordinates, segment.to_coordinates], {
-      routingMode: "auto",
-      mapStateAutoApply: false,
-    }),
-  )
-    .then((route) => {
-      styleRoadRoute(route, transportColors[segment.transport_type] || "#686868");
-      mapInstance.geoObjects.add(route);
-      return route;
-    })
-    .catch(() => addFallbackLine(ymaps, mapInstance, segment));
-}
-
-function addTransitRoute(ymaps, mapInstance, segment) {
-  if (!ymaps.multiRouter?.MultiRoute) {
-    return Promise.resolve(
-      addFallbackLine(ymaps, mapInstance, segment, {
-        coordinates: createArcPath(
-          segment.from_coordinates,
-          segment.to_coordinates,
-          0.05,
-        ),
-        strokeWidth: 4,
-        strokeOpacity: 0.85,
-      }),
-    );
-  }
-
-  return new Promise((resolve, reject) => {
-    const multiRoute = new ymaps.multiRouter.MultiRoute(
-      {
-        referencePoints: [
-          segment.from_coordinates,
-          segment.to_coordinates,
-        ],
-        params: {
-          routingMode: "masstransit",
-          results: 1,
-        },
-      },
-      {
-        boundsAutoApply: false,
-        wayPointVisible: false,
-        viaPointVisible: false,
-        pinVisible: false,
-        routeActiveStrokeColor: transportColors[segment.transport_type] || "#141414",
-        routeActiveStrokeWidth: 5,
-        routeActiveStrokeOpacity: 0.95,
-      },
-    );
-
-    let settled = false;
-    const handleSuccess = () => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      mapInstance.geoObjects.add(multiRoute);
-      resolve(multiRoute);
-    };
-    const handleFail = () => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      reject(new Error("Failed to build transit route"));
-    };
-
-    multiRoute.model.events.add("requestsuccess", handleSuccess);
-    multiRoute.model.events.add("requestfail", handleFail);
-  }).catch(() =>
+function addGroundRoute(ymaps, mapInstance, segment) {
+  const curveFactor =
+    segment.transport_type === "train"
+      ? 0.05
+      : segment.transport_type === "electric_train"
+        ? 0.03
+        : 0;
+  const coordinates =
+    curveFactor > 0
+      ? createArcPath(segment.from_coordinates, segment.to_coordinates, curveFactor)
+      : [segment.from_coordinates, segment.to_coordinates];
+  return Promise.resolve(
     addFallbackLine(ymaps, mapInstance, segment, {
-      coordinates: createArcPath(
-        segment.from_coordinates,
-        segment.to_coordinates,
-        0.05,
-      ),
-      strokeWidth: 4,
-      strokeOpacity: 0.85,
+      coordinates,
+      strokeWidth: segment.transport_type === "bus" ? 5 : 4,
+      strokeOpacity: 0.9,
+      geodesic: segment.transport_type === "bus",
     }),
   );
 }
@@ -230,30 +104,58 @@ function addSegmentRoute(ymaps, mapInstance, segment) {
   if (segment.transport_type === "plane") {
     return addAirRoute(ymaps, mapInstance, segment);
   }
+  return addGroundRoute(ymaps, mapInstance, segment);
+}
 
-  if (segment.transport_type === "bus") {
-    return addRoadRoute(ymaps, mapInstance, segment);
+function buildTransportLegend(route) {
+  if (route?.transport_legend?.length) {
+    return route.transport_legend.map((item) => ({
+      key: item.transport_type,
+      label: item.label,
+      duration: formatDuration(item.duration_minutes),
+      color: item.color,
+    }));
   }
 
-  return addTransitRoute(ymaps, mapInstance, segment);
+  const totals = new Map();
+
+  (route?.segments || []).forEach((segment) => {
+    const current = totals.get(segment.transport_type) || 0;
+    totals.set(segment.transport_type, current + (segment.duration_minutes || 0));
+  });
+
+  return Object.entries(transportLabels)
+    .filter(([key]) => totals.has(key))
+    .map(([key, label]) => ({
+      key,
+      label,
+      duration: formatDuration(totals.get(key)),
+      color: transportColors[key],
+    }));
 }
 
 export function RouteMap({ route, title }) {
   const mapContainerRef = useRef(null);
   const [status, setStatus] = useState("idle");
-  const apiKey =
-    import.meta.env.VITE_YANDEX_MAPS_API_KEY ||
-    "8013b162-6b42-4997-9691-77b7074026e0";
+  const apiKey = import.meta.env.VITE_YANDEX_MAPS_API_KEY || "";
   const statusMessage =
-    status === "error"
-        ? "Не удалось загрузить Yandex Maps API. Проверьте ключ, квоты и доступность сервиса."
+    status === "disabled"
+      ? "Ключ Yandex Maps не задан. Маршрут остается доступен списком сегментов."
+      : status === "error"
+        ? "Не удалось загрузить Yandex Maps API. Проверьте ключ и доступность сервиса."
         : status === "loading"
-          ? "Готовим карту и подтягиваем реальные траектории Яндекса для наземных сегментов..."
+          ? "Готовим карту и рисуем локальную геометрию маршрута..."
           : "";
+  const legendItems = buildTransportLegend(route);
 
   useEffect(() => {
     if (!route?.segments?.length || !route?.waypoints?.length) {
       setStatus("empty");
+      return undefined;
+    }
+
+    if (!apiKey) {
+      setStatus("disabled");
       return undefined;
     }
 
@@ -263,7 +165,7 @@ export function RouteMap({ route, title }) {
     setStatus("loading");
 
     loadYandexMaps(apiKey)
-      .then(waitForReady)
+      .then(waitForYandexReady)
       .then(async (ymaps) => {
         if (isDisposed || !mapContainerRef.current) {
           return;
@@ -338,19 +240,20 @@ export function RouteMap({ route, title }) {
           <p className="eyebrow">Карта маршрута</p>
           <h3>{title}</h3>
           <p className="route-map-subtitle">
-            Автобусы строятся по дорогам, для рельсового транспорта сначала
-            используем сценарии Яндекс.Карт, а перелеты показываем отдельной дугой.
+            Карта использует только локальные координаты сегментов: наземные
+            участки рисуются линиями, а перелеты показываются отдельной дугой.
           </p>
         </div>
         <div className="route-map-legend">
-          {Object.entries(transportLabels).map(([key, label]) => (
+          {legendItems.map(({ key, label, duration, color }) => (
             <span key={key} className="route-map-legend-item">
               <i
                 style={{
-                  background: transportColors[key],
+                  background: color || transportColors[key],
                 }}
               />
-              {label}
+              <strong>{label}</strong>
+              <small>{duration}</small>
             </span>
           ))}
         </div>

@@ -15,9 +15,12 @@ class CityListSerializer(serializers.ModelSerializer):
             "latitude",
             "longitude",
             "has_airport",
+            "has_international_airport",
             "has_train_station",
             "has_bus_station",
             "has_commuter_station",
+            "is_rail_hub",
+            "is_bus_hub",
         )
 
 
@@ -49,9 +52,12 @@ class CityDetailSerializer(serializers.ModelSerializer):
             "latitude",
             "longitude",
             "has_airport",
+            "has_international_airport",
             "has_train_station",
             "has_bus_station",
             "has_commuter_station",
+            "is_rail_hub",
+            "is_bus_hub",
             "available_transports",
             "active_tickets_count",
             "available_directions_count",

@@ -1,4 +1,5 @@
 import { formatCompactNumber } from "../utils/format";
+import { TransportGlyph } from "./TransportGlyph";
 
 const transportLabels = {
   bus: "Автобус",
@@ -7,53 +8,65 @@ const transportLabels = {
   electric_train: "Электричка",
 };
 
-const transportIcons = {
-  bus: "BUS",
-  train: "ЖД",
-  plane: "AIR",
-  electric_train: "ЭЛ",
-};
-
-function HubCard({ code, label, active }) {
+function HubCard({ type, label, active }) {
   return (
     <article className={`hub-card ${active ? "hub-card-active" : "hub-card-muted"}`}>
-      <span className="hub-card-icon">{code}</span>
+      <span className="hub-card-icon hub-card-icon-glyph">
+        <TransportGlyph type={type} />
+      </span>
       <div>
         <strong>{label}</strong>
-        <p>{active ? "Доступно" : "Нет данных"}</p>
+        <p>{active ? "Есть в городской витрине" : "Пока нет подтверждения"}</p>
       </div>
     </article>
   );
 }
 
-export function CityInfoCard({ city }) {
+export function CityInfoCard({ city, embedded = false }) {
   const hubCards = [
-    { code: "BUS", label: "Автобусная станция", active: city.has_bus_station },
-    { code: "AIR", label: "Аэропорт", active: city.has_airport },
-    { code: "ЖД", label: "Ж/д станция", active: city.has_train_station },
+    { type: "bus", label: "Автобусная станция", active: city.has_bus_station },
     {
-      code: "ЭЛ",
+      type: "plane",
+      label: city.has_international_airport ? "Международный аэропорт" : "Аэропорт",
+      active: city.has_airport,
+    },
+    { type: "train", label: "Ж/д станция", active: city.has_train_station },
+    {
+      type: "electric_train",
       label: "Электрички",
       active: city.has_commuter_station,
     },
   ];
 
+  const transportMixRows = city.tickets_by_transport?.length
+    ? city.tickets_by_transport.map((item) => ({
+        label: transportLabels[item.transport_type] || item.transport_type,
+        value: item.tickets_count ? "Есть в базе" : "Нет данных",
+      }))
+    : [];
+  const popularRoutes = city.popular_destinations?.length
+    ? city.popular_destinations.map((item) => item.name)
+    : [];
+  const Wrapper = embedded ? "div" : "section";
+
   return (
-    <section className="info-card city-info-card-live">
-      <div className="info-card-header">
-        <div>
-          <p className="eyebrow">Профиль города</p>
-          <h2>{city.name}</h2>
-          <p className="city-card-copy">
+    <Wrapper className={embedded ? "city-info-card-live city-info-card-live-embedded" : "info-card city-info-card-live"}>
+      <div className="city-info-hero">
+        <div className="info-card-header">
+          <div>
+            <p className="eyebrow">Профиль города</p>
+            <h2>{city.name}</h2>
+            <p className="city-card-copy">
             {city.region}
             {city.population
-              ? ` • ${new Intl.NumberFormat("ru-RU").format(city.population)} жителей`
-              : ""}
-          </p>
-          <p className="city-card-copy">
-            Видно транспортные узлы, объём витрины билетов и самые частые
-            направления для этого города.
-          </p>
+                ? ` • ${new Intl.NumberFormat("ru-RU").format(city.population)} жителей`
+                : ""}
+            </p>
+            <p className="city-card-copy">
+              Видно ключевые транспортные узлы, состояние витрины билетов и
+              наиболее частые направления для этого города.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -81,55 +94,70 @@ export function CityInfoCard({ city }) {
         {hubCards.map((item) => (
           <HubCard
             key={item.label}
-            code={item.code}
+            type={item.type}
             label={item.label}
             active={item.active}
           />
         ))}
       </div>
 
-      <div className="transport-tags transport-tags-live">
-        {city.available_transports.map((item) => (
-          <span key={item} className="transport-tag transport-tag-live">
-            <span className="transport-tag-icon">
-              {transportIcons[item] || "TR"}
-            </span>
-            {transportLabels[item] || item}
-          </span>
-        ))}
-      </div>
+      <div className="city-table-grid">
+        <div className="mini-card city-table-card">
+          <span>Транспортная таблица</span>
+          <div className="city-table">
+            {transportMixRows.length ? (
+              transportMixRows.map((item) => (
+                <div key={item.label} className="city-table-row">
+                  <strong>{item.label}</strong>
+                  <span>{item.value}</span>
+                </div>
+              ))
+            ) : (
+              <div className="city-table-row">
+                <strong>Пока нет</strong>
+                <span>Добавим после появления билетов</span>
+              </div>
+            )}
+          </div>
+        </div>
 
-      <div className="info-grid info-grid-live">
-        <div className="mini-card">
-          <span>Транспортный микс</span>
-          <strong>
-            {city.tickets_by_transport?.length
-              ? city.tickets_by_transport
-                  .map(
-                    (item) =>
-                      `${transportLabels[item.transport_type] || item.transport_type}: ${formatCompactNumber(item.tickets_count)}`,
-                  )
-                  .join(" • ")
-              : "Пока нет"}
-          </strong>
+        <div className="mini-card city-table-card">
+          <span>Профиль узлов</span>
+          <div className="city-table">
+            <div className="city-table-row">
+              <strong>Международный аэропорт</strong>
+              <span>{city.has_international_airport ? "Да" : "Нет"}</span>
+            </div>
+            <div className="city-table-row">
+              <strong>Ж/д хаб</strong>
+              <span>{city.is_rail_hub ? "Да" : "Нет"}</span>
+            </div>
+            <div className="city-table-row">
+              <strong>Автобусный хаб</strong>
+              <span>{city.is_bus_hub ? "Да" : "Нет"}</span>
+            </div>
+          </div>
         </div>
-        <div className="mini-card">
-          <span>Координаты</span>
-          <strong>
-            {city.latitude}, {city.longitude}
-          </strong>
-        </div>
-        <div className="mini-card">
+
+        <div className="mini-card city-table-card">
           <span>Популярные направления</span>
-          <strong>
-            {city.popular_destinations?.length
-              ? city.popular_destinations
-                  .map((item) => `${item.name} (${formatCompactNumber(item.tickets_count || 0)})`)
-                  .join(", ")
-              : "Пока нет"}
-          </strong>
+          <div className="city-table">
+            {popularRoutes.length ? (
+              popularRoutes.slice(0, 6).map((name) => (
+                <div key={name} className="city-table-row">
+                  <strong>{name}</strong>
+                  <span>Активное направление</span>
+                </div>
+              ))
+            ) : (
+              <div className="city-table-row">
+                <strong>Пока нет</strong>
+                <span>Направления появятся вместе с билетами</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </section>
+    </Wrapper>
   );
 }

@@ -16,10 +16,12 @@ class TicketAdmin(admin.ModelAdmin):
         "price",
         "available_seats",
         "is_active",
+        "generation_batch",
     )
-    list_filter = ("transport_type", "is_active", "carrier")
+    list_filter = ("transport_type", "is_active", "carrier", "generation_batch")
     search_fields = (
         "external_id",
+        "route_signature",
         "from_city__name",
         "to_city__name",
         "carrier__name",

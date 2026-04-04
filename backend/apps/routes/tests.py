@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 
+from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
@@ -8,6 +9,8 @@ from rest_framework.test import APITestCase
 from apps.carriers.models import Carrier
 from apps.cities.models import City
 from apps.tickets.models import Ticket
+
+User = get_user_model()
 
 
 def aware(value: str):
@@ -28,9 +31,12 @@ class TravelAPITests(APITestCase):
             latitude=56.501,
             longitude=84.992,
             has_airport=True,
+            has_international_airport=False,
             has_train_station=True,
             has_bus_station=True,
             has_commuter_station=False,
+            is_rail_hub=True,
+            is_bus_hub=True,
         )
         cls.novosibirsk = City.objects.create(
             name="Новосибирск",
@@ -40,9 +46,12 @@ class TravelAPITests(APITestCase):
             latitude=55.031,
             longitude=82.928,
             has_airport=True,
+            has_international_airport=True,
             has_train_station=True,
             has_bus_station=True,
             has_commuter_station=True,
+            is_rail_hub=True,
+            is_bus_hub=True,
         )
         cls.moscow = City.objects.create(
             name="Москва",
@@ -52,9 +61,12 @@ class TravelAPITests(APITestCase):
             latitude=55.755,
             longitude=37.617,
             has_airport=True,
+            has_international_airport=True,
             has_train_station=True,
             has_bus_station=True,
             has_commuter_station=True,
+            is_rail_hub=True,
+            is_bus_hub=True,
         )
         cls.omsk = City.objects.create(
             name="Омск",
@@ -64,9 +76,27 @@ class TravelAPITests(APITestCase):
             latitude=54.989,
             longitude=73.369,
             has_airport=True,
+            has_international_airport=False,
             has_train_station=True,
             has_bus_station=True,
             has_commuter_station=False,
+            is_rail_hub=True,
+            is_bus_hub=True,
+        )
+        cls.berdsk = City.objects.create(
+            name="Бердск",
+            slug="berdsk",
+            region="Новосибирская область",
+            population=103000,
+            latitude=54.758,
+            longitude=83.107,
+            has_airport=False,
+            has_international_airport=False,
+            has_train_station=True,
+            has_bus_station=True,
+            has_commuter_station=True,
+            is_rail_hub=False,
+            is_bus_hub=True,
         )
 
         cls.s7 = Carrier.objects.create(
@@ -85,6 +115,12 @@ class TravelAPITests(APITestCase):
             code="nsk-bus",
             name="Новосибирский автовокзал",
             transport_type=Carrier.TransportType.BUS,
+        )
+        cls.commuter = Carrier.objects.create(
+            code="central-ppk",
+            name="ЦППК",
+            transport_type=Carrier.TransportType.ELECTRIC_TRAIN,
+            reference_url="https://central-ppk.ru/",
         )
 
         cls._create_ticket(
@@ -130,6 +166,17 @@ class TravelAPITests(APITestCase):
             240,
             12000,
             2900,
+        )
+        cls._create_ticket(
+            "electro-1",
+            cls.commuter,
+            cls.novosibirsk,
+            cls.berdsk,
+            Ticket.TransportType.ELECTRIC_TRAIN,
+            aware("2026-04-10 07:30"),
+            55,
+            190,
+            38,
         )
 
     @classmethod
@@ -180,6 +227,8 @@ class TravelAPITests(APITestCase):
         self.assertEqual(response.data["population"], 545000)
         self.assertIn("train", response.data["available_transports"])
         self.assertIn("bus", response.data["available_transports"])
+        self.assertTrue(response.data["is_rail_hub"])
+        self.assertFalse(response.data["has_international_airport"])
 
     def test_route_builder_returns_best_route(self):
         response = self.client.post(
@@ -201,6 +250,7 @@ class TravelAPITests(APITestCase):
         self.assertEqual(response.data["status"], "success")
         self.assertIsNotNone(response.data["best_route"])
         self.assertEqual(response.data["best_route"]["segments"][0]["transport_type"], "plane")
+        self.assertTrue(response.data["best_route"]["transport_legend"])
 
     def test_route_builder_supports_required_transit_city(self):
         response = self.client.post(
@@ -227,6 +277,76 @@ class TravelAPITests(APITestCase):
         ]
         self.assertIn(self.novosibirsk.slug, waypoint_slugs[1:-1])
 
+    def test_route_builder_supports_bus_only(self):
+        response = self.client.post(
+            reverse("route-build"),
+            {
+                "from_city": self.tomsk.slug,
+                "to_city": self.novosibirsk.slug,
+                "departure_date": "2026-04-10",
+                "departure_time": "07:00",
+                "priority": "optimal",
+                "preferred_transport_types": ["bus"],
+                "direct_only": False,
+                "allow_transfers": True,
+                "max_transfers": 2,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "success")
+        self.assertTrue(
+            all(
+                segment["transport_type"] == Ticket.TransportType.BUS
+                for segment in response.data["best_route"]["segments"]
+            )
+        )
+
+    def test_route_builder_supports_electric_train_only(self):
+        response = self.client.post(
+            reverse("route-build"),
+            {
+                "from_city": self.novosibirsk.slug,
+                "to_city": self.berdsk.slug,
+                "departure_date": "2026-04-10",
+                "departure_time": "07:00",
+                "priority": "optimal",
+                "preferred_transport_types": ["electric_train"],
+                "direct_only": False,
+                "allow_transfers": True,
+                "max_transfers": 2,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "success")
+        self.assertTrue(
+            all(
+                segment["transport_type"] == Ticket.TransportType.ELECTRIC_TRAIN
+                for segment in response.data["best_route"]["segments"]
+            )
+        )
+        self.assertEqual(response.data["best_route"]["transport_legend"][0]["transport_type"], "electric_train")
+
+    def test_route_builder_returns_dataset_not_seeded_reason_when_no_active_tickets(self):
+        Ticket.objects.all().delete()
+        response = self.client.post(
+            reverse("route-build"),
+            {
+                "from_city": self.tomsk.slug,
+                "to_city": self.moscow.slug,
+                "departure_date": "2026-04-10",
+                "departure_time": "07:00",
+                "priority": "optimal",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "empty")
+        self.assertEqual(response.data["reason"], "dataset_not_seeded")
+
     def test_route_builder_validates_equal_cities(self):
         response = self.client.post(
             reverse("route-build"),
@@ -238,3 +358,38 @@ class TravelAPITests(APITestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_authenticated_user_can_save_route_to_favorites(self):
+        user = User.objects.create_user(username="tester", password="secret123")
+        route_response = self.client.post(
+            reverse("route-build"),
+            {
+                "from_city": self.tomsk.slug,
+                "to_city": self.moscow.slug,
+                "departure_date": "2026-04-10",
+                "departure_time": "07:00",
+                "priority": "fastest",
+                "direct_only": False,
+                "allow_transfers": True,
+                "max_transfers": 2,
+            },
+            format="json",
+        )
+        self.assertEqual(route_response.status_code, status.HTTP_200_OK)
+
+        self.client.force_authenticate(user=user)
+        save_response = self.client.post(
+            reverse("route-favorites"),
+            {
+                "route_title": "Тестовый маршрут",
+                "query": route_response.data["query"],
+                "route_data": route_response.data["best_route"],
+            },
+            format="json",
+        )
+        self.assertEqual(save_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(save_response.data["route_title"], "Тестовый маршрут")
+
+        list_response = self.client.get(reverse("route-favorites"))
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(list_response.data), 1)

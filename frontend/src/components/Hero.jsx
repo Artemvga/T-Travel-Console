@@ -34,12 +34,11 @@ export function Hero({ stats }) {
   return (
     <section className="hero-section hero-section-compact">
       <div className="hero-content">
-        <p className="eyebrow">Т-Путешествия</p>
-        <h1>Маршруты по России с картой, билетами и умной логикой пересадок.</h1>
+        <h1>Карта, билеты и маршрут по России в одном окне.</h1>
         <p>
           Проверьте город, сравните транспортные узлы и соберите маршрут по
-          России с билетами, временем в пути, обязательным транзитным городом
-          и до пяти пересадок, если это нужно вашему сценарию.
+          России с понятной логикой пересадок, временем в пути, выбором приоритета
+          и отображением пути на Яндекс Карте.
         </p>
 
         <div className="hero-chip-row">
@@ -72,13 +71,13 @@ export function Hero({ stats }) {
           <img src={visuals.hero} alt="Полет над городом" />
         </article>
         <article className="hero-floating-card">
-          <span>Маршрутный сценарий</span>
-          <strong>Москва → Новосибирск → Владивосток</strong>
-          <p>Один интерфейс для выбора параметров, карты и итоговых билетов.</p>
+          <span>Как это работает</span>
+          <strong>Выберите города, настройте дату и сразу получите билеты с картой.</strong>
+          <p>Маршрут можно сразу открыть, сравнить и сохранить в избранное после входа.</p>
         </article>
         <article className="hero-floating-card hero-floating-card-dark">
           <span>Приоритеты</span>
-          <strong>Быстрее, дешевле или оптимально</strong>
+          <strong>Быстрее • Дешевле • Оптимально</strong>
         </article>
       </div>
     </section>

@@ -1,0 +1,784 @@
+Т-ПУТЕШЕСТВИЯ
+ПОЛНАЯ ТЕКУЩАЯ ДОКУМЕНТАЦИЯ ПО ПРОЕКТУ
+
+Дата актуализации: 2026-04-04
+Корень проекта: /Users/artem/Documents/T-Travel-Console
+
+
+1. СУТЬ ПРОЕКТА
+
+Проект "Т-Путешествия" — это сервис поиска маршрутов по городам России.
+Он вырос из консольной версии и сейчас разворачивается как полноценное веб-приложение:
+
+- backend: Django + Django REST Framework;
+- frontend: React + Vite;
+- данные: локальный датасет городов, перевозчиков и билетов;
+- карта: Yandex Maps API.
+
+Пользователь может:
+
+- искать город и смотреть его транспортный профиль;
+- строить маршрут между городами;
+- задавать дату и время отправления;
+- выбирать приоритет маршрута: быстрее, дешевле, оптимально;
+- ограничивать поиск по видам транспорта;
+- задавать обязательный транзитный город;
+- строить маршрут без пересадок или с пересадками;
+- смотреть маршрут на карте;
+- сохранять маршруты в избранное после авторизации.
+
+
+2. ОСНОВНАЯ ИДЕЯ АРХИТЕКТУРЫ
+
+Проект состоит из 4 крупных частей:
+
+1. Источники данных в data/
+2. Скрипты подготовки и генерации данных в scripts/
+3. Backend API в backend/
+4. Frontend интерфейс в frontend/
+
+Сейчас проект работает так:
+
+- города импортируются из data/cities/cities.json;
+- перевозчики импортируются из data/planes, data/trains, data/buses/by_operator, data/commuter_trains;
+- билеты импортируются из JSON или из временных JSONL-файлов генератора;
+- backend строит маршруты не через полный граф в памяти, а через поэтапный поиск по билетам в БД;
+- frontend запрашивает backend API и показывает страницы города, маршрута, карты, аккаунта и избранного.
+
+
+3. ЧТО ГДЕ ЛЕЖИТ
+
+3.1. Корень проекта
+
+/Users/artem/Documents/T-Travel-Console
+
+В корне лежат:
+
+- README.md
+- PROJECT_DOCUMENTATION.txt
+- graph_routes.py
+- accounts.py
+- russia_cities.csv
+- yandex_geocode.py
+- backend/
+- frontend/
+- data/
+- scripts/
+
+Файлы graph_routes.py и accounts.py — это остатки/наследие консольной версии.
+Сейчас основная веб-логика работает через backend/ и frontend/.
+
+
+3.2. Каталог data/
+
+data/ — это локальная база проекта.
+
+Важные подкаталоги:
+
+- data/cities/
+- data/buses/
+- data/planes/
+- data/trains/
+- data/commuter_trains/
+- data/_tmp_ticket_jsonl/
+- data/cache/
+- data/examples/
+
+Что внутри:
+
+data/cities/cities.json
+- основной список городов;
+- содержит координаты, население, регион и транспортные признаки.
+
+data/cities/city_transport_profiles.json
+- ручной справочник транспортных профилей городов;
+- здесь указываются точные города с аэропортами, международными аэропортами, электричками, ж/д хабами и автобусными хабами;
+- этот файл накладывается поверх эвристик генератора городов.
+
+data/buses/by_operator/*.json
+- билеты автобусных операторов, разложенные по файлам операторов.
+
+data/planes/*.json
+- авиакомпании с билетами.
+
+data/trains/*.json
+- железнодорожные перевозчики.
+
+data/commuter_trains/*.json
+- пригородные перевозчики и электрички.
+
+data/_tmp_ticket_jsonl/*.jsonl
+- временные файлы генератора;
+- импорт билетов умеет читать их напрямую;
+- это особенно важно, если итоговые JSON-файлы были прерваны во время генерации или временно пустые.
+
+data/cache/stats_snapshot.json
+- сохраненная витрина статистики для главной страницы.
+
+data/cache/city_details/*.json
+- сохраненные снапшоты деталей города для быстрой выдачи.
+
+
+3.3. Каталог scripts/
+
+Скрипты подготовки данных:
+
+scripts/build_cities_json.py
+- строит data/cities/cities.json из russia_cities.csv;
+- сначала выставляет базовые эвристики;
+- потом накладывает ручные транспортные профили из city_transport_profiles.json;
+- сохраняет новую схему города с полями:
+  has_airport
+  has_international_airport
+  has_train_station
+  has_bus_station
+  has_commuter_station
+  is_rail_hub
+  is_bus_hub
+
+scripts/build_transport_companies_json.py
+- создает и обновляет JSON-файлы перевозчиков;
+- умеет формировать документы для planes, trains, buses и commuter_trains.
+
+scripts/generate_tickets_by_company.py
+- основной генератор билетов;
+- генерирует билеты по компаниям;
+- пишет сначала JSONL, потом собирает итоговые JSON;
+- учитывает профиль городов и разные правила для самолетов, поездов, автобусов и электричек.
+
+
+3.4. Каталог backend/
+
+backend/ — Django backend.
+
+Основные файлы:
+
+backend/manage.py
+- точка входа для Django-команд.
+
+backend/config/settings.py
+- настройки backend;
+- поддерживает PostgreSQL через DATABASE_URL или POSTGRES_*;
+- при отсутствии PostgreSQL может падать обратно на SQLite в локальном режиме.
+
+backend/apps/
+- основной код backend.
+
+
+3.5. Backend apps
+
+backend/apps/accounts/
+- регистрация;
+- вход;
+- выход;
+- профиль текущего пользователя.
+
+backend/apps/cities/
+- модель города;
+- поиск города по подсказкам;
+- детали города;
+- импорт городов.
+
+backend/apps/carriers/
+- модель перевозчика;
+- список перевозчиков;
+- импорт перевозчиков.
+
+backend/apps/tickets/
+- модель билета;
+- импорт билетов;
+- очистка билетов.
+
+backend/apps/routes/
+- построение маршрутов;
+- логи поисков;
+- избранные маршруты;
+- статистика для главной;
+- snapshot-команда витрин.
+
+backend/apps/common/
+- общие утилиты для чтения data-файлов и путей.
+
+
+3.6. Каталог frontend/
+
+frontend/ — React интерфейс.
+
+Основные файлы:
+
+frontend/package.json
+- команды запуска frontend;
+- full-stack dev сценарий;
+- Vite build.
+
+frontend/src/App.jsx
+- роутинг приложения.
+
+frontend/src/pages/
+- страницы сайта.
+
+frontend/src/components/
+- переиспользуемые UI-компоненты.
+
+frontend/src/services/api.js
+- все HTTP-запросы к backend API;
+- нормализация ошибок для пользователя.
+
+frontend/src/context/AuthContext.jsx
+- состояние авторизации;
+- хранение токена;
+- bootstrap текущего пользователя.
+
+frontend/src/styles/global.css
+- основной глобальный стиль;
+- сейчас это главный слой дизайн-системы проекта.
+
+frontend/src/utils/yandexMaps.js
+- загрузка Yandex Maps API.
+
+frontend/public/
+- статические файлы, логотип, локальные изображения.
+
+
+4. КАК УСТРОЕНЫ ДАННЫЕ
+
+4.1. Город
+
+Город содержит:
+
+- name
+- region
+- population
+- lat / lon
+- has_airport
+- has_international_airport
+- has_train_station
+- has_bus_station
+- has_commuter_station
+- is_rail_hub
+- is_bus_hub
+
+Назначение полей:
+
+has_airport
+- в городе есть аэропорт.
+
+has_international_airport
+- аэропорт международного класса;
+- это усиливает роль города как авиа-хаба.
+
+has_train_station
+- есть ж/д станция.
+
+has_bus_station
+- есть автостанция / автобусный узел.
+
+has_commuter_station
+- есть электрички / пригородное сообщение.
+
+is_rail_hub
+- город является важным ж/д узлом.
+
+is_bus_hub
+- город является важным автобусным узлом.
+
+
+4.2. Билет
+
+Билет в генераторе и импорте содержит как минимум:
+
+- from_city
+- to_city
+- company
+- departure_date
+- departure_time
+- price_rub
+- distance_km
+- duration_min
+- mode
+
+После импорта в Django Ticket превращается в модель с полями:
+
+- external_id
+- carrier
+- from_city
+- to_city
+- transport_type
+- departure_datetime
+- arrival_datetime
+- duration_minutes
+- price
+- distance_km
+- is_direct
+- available_seats
+- is_active
+
+
+5. КАК РАБОТАЕТ ПОСТРОЕНИЕ МАРШРУТА
+
+Маршрут строится не через наивный полный DFS по заранее загруженному графу в памяти, а через поиск по билетам в базе.
+
+Текущее ядро поиска находится в:
+
+backend/apps/routes/services.py
+
+Логика поиска:
+
+1. Находим город отправления, город прибытия и при необходимости транзитный город.
+2. Формируем временную точку отправления.
+3. Идем по состояниям поиска:
+   - текущий город;
+   - текущее доступное время;
+   - уже пройденные сегменты;
+   - набор уже посещенных городов;
+   - суммарная цена;
+   - суммарное расстояние.
+4. Для каждого состояния выбираем ограниченный набор подходящих билетов.
+5. Не даем маршруту возвращаться в уже пройденные города.
+6. Учитываем буфер на пересадку.
+7. Сортируем готовые пути по приоритету пользователя.
+
+Поддерживаемые режимы:
+
+- прямой маршрут;
+- маршрут с пересадками;
+- маршрут через обязательный транзитный город;
+- только автобус;
+- только поезд;
+- только электричка;
+- смешанный маршрут;
+- максимум до 5 пересадок.
+
+Для frontend маршрут отдается уже в сериализованной форме:
+
+- waypoints
+- path_coordinates
+- segments
+- total_price
+- total_duration_minutes
+- total_distance_km
+- transfers_count
+- transport_legend
+- map_mode
+- map_enabled
+
+
+6. КАК РАБОТАЮТ КАРТЫ
+
+Маршрутная карта реализована на Yandex Maps API.
+
+Текущий подход гибридный:
+
+- самолет:
+  рисуется дугой;
+
+- автобус:
+  строится через road routing Yandex;
+  если road routing не удался — рисуется fallback-кривой;
+
+- поезд:
+  пробует transit/multiroute сценарий;
+  при неудаче — fallback-линия;
+
+- электричка:
+  аналогично поездной логике, но своим цветом.
+
+Каждому виду транспорта соответствует свой цвет.
+Также у маршрута есть легенда, где показано суммарное время по видам транспорта.
+
+На странице города используется отдельная карта города:
+
+- центрируется на выбранном городе;
+- ставит маркер;
+- показывает радиусную зону;
+- работает внутри единого контейнера с городской информацией.
+
+
+7. ЧТО УЖЕ РЕАЛИЗОВАНО
+
+На текущий момент реализовано:
+
+Backend:
+
+- API здоровья;
+- API статистики проекта;
+- API поиска городов;
+- API карточки города;
+- API списка перевозчиков;
+- API построения маршрута;
+- регистрация;
+- вход и выход;
+- профиль пользователя;
+- избранные маршруты;
+- история поисков;
+- snapshot-механизм для статистики и страницы города;
+- поддержка PostgreSQL-конфига;
+- fallback на SQLite.
+
+Данные:
+
+- новая схема городов с транспортными профилями;
+- ручной справочник точных транспортных профилей;
+- генератор билетов с отдельными правилами для:
+  plane
+  train
+  bus
+  electric_train
+- forced corridors;
+- импорт из JSON и JSONL;
+- поддержка commuter_trains;
+- составные индексы для Ticket.
+
+Frontend:
+
+- Главная страница;
+- Страница информации о городе;
+- Страница построения маршрута;
+- Страница аккаунта;
+- Страница избранного;
+- Navbar;
+- Footer;
+- Yandex route map;
+- Yandex city map;
+- подсказки по городам;
+- компактный маршрутный интерфейс;
+- пользовательские ошибки без служебного dev-текста;
+- гармонизированный желто-черно-белый UI.
+
+
+8. ЧТО ЕЩЕ НЕ ДОВЕДЕНО ДО КОНЦА
+
+Есть уже реализованный каркас под production-scale, но некоторые большие шаги еще не завершены полностью:
+
+- PostgreSQL-конфиг реализован, но конкретный production-инстанс нужно поднимать отдельно;
+- генератор умеет работать по новой логике, но полный массовый реимпорт на 15 млн билетов не запускается автоматически при каждом dev-старте;
+- часть текущих data/*.json может быть пустой после незавершенной генерации, поэтому dev-импорт сейчас умеет безопасно fallback-ить на JSONL;
+- для очень больших объемов данных желательно окончательно перевести все тяжелые витрины на PostgreSQL и snapshot/summary-слой.
+
+
+9. КАК РАБОТАЕТ АВТОРИЗАЦИЯ
+
+Авторизация реализована через Django Token Auth.
+
+После входа:
+
+- frontend сохраняет токен в localStorage;
+- каждый API-запрос автоматически подставляет `Authorization: Token ...`;
+- backend возвращает профиль пользователя и историю;
+- пользователь получает доступ к избранному.
+
+Авторизованный пользователь может:
+
+- сохранить найденный маршрут в избранное;
+- открыть страницу избранного;
+- видеть количество сохраненных маршрутов;
+- видеть последние поиски.
+
+
+10. КАК РАБОТАЕТ ИЗБРАННОЕ
+
+Избранное реализовано через модель RouteFavorite.
+
+Хранится:
+
+- пользователь;
+- from_city;
+- via_city;
+- to_city;
+- departure_at;
+- priority_mode;
+- route_title;
+- route_signature;
+- route_data;
+
+Особенности:
+
+- сохранить маршрут можно только авторизованным пользователем;
+- используется сигнатура маршрута по сегментам;
+- защита от дублей идет по:
+  user + route_signature + departure_at
+
+
+11. ОСНОВНЫЕ BACKEND API
+
+GET /api/health/
+- проверка жив ли backend.
+
+GET /api/stats/
+- статистика проекта для главной.
+
+GET /api/cities/
+- список городов.
+
+GET /api/cities/search/?q=...
+- подсказки по городам.
+
+GET /api/cities/<slug>/
+- полная карточка города.
+
+GET /api/carriers/
+- список перевозчиков.
+
+POST /api/routes/build/
+- построение маршрута.
+
+POST /api/auth/register/
+- регистрация.
+
+POST /api/auth/login/
+- вход.
+
+POST /api/auth/logout/
+- выход.
+
+GET /api/auth/me/
+- текущий пользователь.
+
+GET /api/routes/favorites/
+- список избранных маршрутов.
+
+POST /api/routes/favorites/
+- сохранить маршрут в избранное.
+
+DELETE /api/routes/favorites/<id>/
+- удалить маршрут из избранного.
+
+
+12. СТРАНИЦЫ FRONTEND
+
+/
+- главная;
+- hero, статистика, транспортные категории, быстрый вход в поиск.
+
+/cities
+- информация о городе;
+- выбор города через подсказки;
+- composite-панель с информацией и картой.
+
+/routes
+- построение маршрута;
+- слева фильтры;
+- справа главная форма маршрута;
+- ниже карта и список найденных маршрутов.
+
+/account
+- вход / регистрация;
+- либо личный кабинет пользователя.
+
+/favorites
+- избранные маршруты пользователя.
+
+
+13. КАК ЗАПУСКАТЬ ПРОЕКТ
+
+13.1. Быстрый полный запуск
+
+Из frontend:
+
+cd /Users/artem/Documents/T-Travel-Console/frontend
+npm run dev:frontend
+
+Этот сценарий:
+
+- проверяет локальную БД;
+- если там нет активных билетов, запускает seed_all;
+- поднимает Django backend;
+- поднимает Vite frontend.
+
+
+13.2. Отдельный запуск backend
+
+cd /Users/artem/Documents/T-Travel-Console/backend
+./.venv/bin/python manage.py runserver 127.0.0.1:8000
+
+
+13.3. Отдельный запуск frontend
+
+cd /Users/artem/Documents/T-Travel-Console/frontend
+npm run dev:ui
+
+
+13.4. Первичная подготовка backend
+
+cd /Users/artem/Documents/T-Travel-Console/backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py import_cities
+python manage.py import_carriers
+python manage.py import_tickets
+python manage.py refresh_catalog_snapshots
+
+
+13.5. Быстрый локальный импорт с ограничением
+
+Для быстрого локального старта:
+
+cd /Users/artem/Documents/T-Travel-Console/backend
+./.venv/bin/python manage.py seed_all --max-tickets-per-file 5000
+
+
+14. ПОЛЕЗНЫЕ DJANGO-КОМАНДЫ
+
+cd /Users/artem/Documents/T-Travel-Console/backend
+source .venv/bin/activate
+
+python manage.py check
+python manage.py test apps.routes
+python manage.py import_cities
+python manage.py import_carriers
+python manage.py import_tickets --truncate
+python manage.py cleanup_tickets
+python manage.py refresh_catalog_snapshots
+python manage.py seed_all
+
+
+15. КАК РАБОТАЕТ DEV-СЦЕНАРИЙ
+
+Во frontend/package.json есть команды:
+
+dev
+- полный запуск.
+
+dev:frontend
+- тоже полный запуск.
+
+dev:ui
+- только Vite frontend.
+
+dev:backend
+- только Django backend.
+
+Скрипт frontend/scripts/dev-full.sh:
+
+- находит backend;
+- при необходимости локально импортирует датасет;
+- поднимает backend;
+- запускает Vite с привязкой к найденному backend origin.
+
+Дополнительно:
+
+- если итоговые JSON перевозчиков пустые, импорт теперь не падает;
+- в таком случае он берет служебные данные из имени файла и читает билеты из JSONL.
+
+
+16. ЛОГИКА ГЕНЕРАЦИИ БИЛЕТОВ
+
+Генератор билетов учитывает:
+
+- профиль города;
+- тип транспорта;
+- расстояние между городами;
+- допустимую длину маршрута;
+- forced corridors;
+- роль хабов.
+
+Plane:
+- коэффициент пути 1.02–1.10;
+- скорость 680–820 км/ч;
+- короткое время по сравнению с поездом.
+
+Train:
+- коэффициент пути 1.08–1.35;
+- скорость 45–95 км/ч;
+- ограничение на заведомо нереалистичные длительности.
+
+Bus:
+- коэффициент пути 1.10–1.45;
+- скорость 35–70 км/ч;
+- нельзя делать прямые сверхдальние маршруты как норму.
+
+Electric train:
+- только короткие региональные плечи;
+- максимум около 250 км;
+- строится только между городами с commuter-профилем.
+
+
+17. ВАЖНЫЕ ФАЙЛЫ, КОТОРЫЕ НУЖНО ЗНАТЬ
+
+Если нужно разбираться в проекте дальше, сначала смотреть сюда:
+
+Основной backend:
+
+- backend/config/settings.py
+- backend/apps/routes/services.py
+- backend/apps/routes/views.py
+- backend/apps/routes/serializers.py
+- backend/apps/cities/views.py
+- backend/apps/tickets/models.py
+- backend/apps/tickets/management/commands/import_tickets.py
+
+Данные и генерация:
+
+- scripts/build_cities_json.py
+- scripts/generate_tickets_by_company.py
+- data/cities/city_transport_profiles.json
+- data/cities/cities.json
+
+Основной frontend:
+
+- frontend/src/App.jsx
+- frontend/src/services/api.js
+- frontend/src/pages/HomePage.jsx
+- frontend/src/pages/CityInfoPage.jsx
+- frontend/src/pages/RouteBuilderPage.jsx
+- frontend/src/pages/AccountPage.jsx
+- frontend/src/pages/FavoritesPage.jsx
+- frontend/src/components/RouteMap.jsx
+- frontend/src/components/SearchAutocomplete.jsx
+- frontend/src/styles/global.css
+
+
+18. ТЕКУЩЕЕ СОСТОЯНИЕ ПРОЕКТА ПРОСТЫМИ СЛОВАМИ
+
+Сейчас проект уже не является просто “идеей”.
+Это рабочий веб-MVP с:
+
+- маршрутами,
+- городами,
+- картой,
+- поиском,
+- аккаунтом,
+- избранным,
+- генератором данных,
+- импортом в backend.
+
+То есть ядро приложения уже собрано.
+
+Главный следующий тяжелый этап — не интерфейс, а инфраструктура и масштаб:
+
+- окончательно перевести рабочий контур на PostgreSQL;
+- полностью пересобрать билетную базу большого размера;
+- проверить стабильность поиска и витрин на больших объемах данных.
+
+
+19. КОРОТКОЕ РЕЗЮМЕ
+
+Т-Путешествия — это веб-сервис поиска маршрутов по России.
+
+Что есть уже сейчас:
+
+- backend API;
+- frontend интерфейс;
+- города;
+- маршруты;
+- карта;
+- избранное;
+- авторизация;
+- генератор билетов;
+- импорт данных;
+- транспортные профили городов.
+
+Что является основой проекта:
+
+- data/ — данные;
+- scripts/ — подготовка и генерация;
+- backend/ — логика и API;
+- frontend/ — интерфейс.
+
+Если нужен быстрый запуск:
+
+cd /Users/artem/Documents/T-Travel-Console/frontend
+npm run dev:frontend
+
